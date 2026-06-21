@@ -1,211 +1,184 @@
 # Day 3: Large Language Models and APIs
 
 ## Objective
-Understand LLMs and integrate them via API calls.
+Understand Large Language Models (LLMs) and call one from Python via an API.
 
 ## Core Concepts
-- **Overview of Large Language Models (LLMs)**
-  - What LLMs are and how they're trained
-  - Natural language response capabilities
-  - Common providers (OpenAI, Hugging Face, etc.)
-- **API Setup**
-  - Obtain API keys (instructor-guided)
-  - Basic Python script for LLM endpoint requests
-  - Using `requests` library or official client libraries
-- **Handling LLM Responses**
-  - Parse JSON/text responses
-  - Understanding token usage and limits
+- **What an LLM is** and how it generates text
+- **Calling an API** with an OpenAI-compatible client
+- **API keys & secrets** — keeping them out of source control
+- **Prompts**: system vs. user messages, `temperature`, `max_tokens`
+- **Handling responses** and failures (fallbacks)
+
+> **This project's LLM:** the game talks to UF's **NaviGator** endpoint using the
+> `openai` client library pointed at a custom `base_url`, running the
+> **`mistral-7b-instruct`** model. The notebook
+> [ai_materials/03_navigator_api_testing.ipynb](../../ai_materials/03_navigator_api_testing.ipynb)
+> walks through testing this from scratch.
 
 ## Hands-On Exercise
-- Write Python script to send prompts to LLM
-- Print console responses
-- Generate dialogue lines or short stories
-- Use original dialogue as context pre-prompts
+The student-facing steps live in
+[student_tutorials/Week2_Day3_Day4_LLM.md](../../student_tutorials/Week2_Day3_Day4_LLM.md).
+1. Create `ai_materials/navigator_api_key.json` (it is **gitignored** — never commit it):
+   ```json
+   {
+     "OPENAI_API_KEY": "your-key-here",
+     "base_url": "https://the-navigator-endpoint/v1"
+   }
+   ```
+2. Run `python test_emotions.py` to see generated dialogue per emotion.
 
 ## Code References
 
-### AI Dialogue Manager (continued)
-**File**: `ai_dialogue_manager.py` (Lines 100-200)
-- Shows how to generate dialogue with LLMs
-- Demonstrates error handling and fallback mechanisms
+> Snippets are copied from the real project files.
+
+### Connecting to the API
+**File**: [ai_dialogue_manager.py](../../ai_dialogue_manager.py) — `__init__`
 
 ```python
-    def generate_dialogue_with_context(self, prompt: str, emotion_context: str = "", max_tokens: int = 150) -> str:
-        """Generate dialogue with emotional context for more personalized responses."""
-        if self.fallback_mode or self.client is None:
-            return self._fallback_dialogue_with_emotion(prompt, emotion_context)
-        
+        # @STUDENT-EDIT-Week2_Day3-1: Add your API key in ai_materials/navigator_api_key.json
+        self.credentials = self._load_api_credentials(key_file_path)
+
+        if self.credentials:
+            try:
+                self.client = openai.OpenAI(
+                    api_key=self.credentials["api_key"],
+                    base_url=self.credentials["base_url"],
+                )
+                self.fallback_mode = False
+                print("🤖 AI Dialogue Manager initialized with API access.")
+            except Exception as e:
+                print(f"⚠️ AI Manager could not connect, falling back to offline mode: {e}")
+                self.fallback_mode = True
+```
+
+**DETAILED WALKTHROUGH:**
+- **`openai.OpenAI(api_key=..., base_url=...)`** — the same client library that talks to
+  OpenAI can talk to *any* OpenAI-compatible endpoint by changing `base_url`. That's how
+  we reach UF NaviGator instead of OpenAI's servers.
+- **`fallback_mode`** flips to `False` only once a client is built — if anything fails,
+  we stay in safe offline mode.
+
+### Loading the API Key Safely
+**File**: [ai_dialogue_manager.py](../../ai_dialogue_manager.py) — `_load_api_credentials`
+
+```python
+    def _load_api_credentials(self, key_file_path):
         try:
-            # Construct prompt with emotional context
-            if emotion_context:
-                full_prompt = f"The user is currently feeling {emotion_context}. {prompt}"
-            else:
-                full_prompt = prompt
-            
-            response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "You are a friendly NPC in a farming adventure game. Respond naturally to the user's emotions and keep responses concise and in-character."},
-                    {"role": "user", "content": full_prompt}
-                ],
-                max_tokens=max_tokens,
-                temperature=0.7,
-            )
-            
-            return response.choices[0].message.content.strip()
-        except Exception as e:
-            print(f"⚠️ AI API error: {e}")
-            return self._fallback_dialogue_with_emotion(prompt, emotion_context)
-    
-    def _fallback_dialogue_with_emotion(self, prompt: str, emotion_context: str = "") -> str:
-        """Provide fallback dialogue with emotional awareness."""
-        emotion_responses = {
-            'happy': [
-                "Your smile is contagious! What's making you so happy today?",
-                "I love seeing you happy! How can I help make your day even better?",
-                "That's wonderful to hear! Happiness looks good on you."
-            ],
-            'sad': [
-                "I notice you seem down. Would you like to talk about what's bothering you?",
-                "Sending you positive vibes. Sometimes talking helps when we're feeling sad.",
-                "It's okay to feel sad sometimes. I'm here if you need someone to listen."
-            ],
-            'angry': [
-                "I sense you're frustrated. Take a deep breath - want to talk about what's upsetting you?",
-                "It sounds like something's really bothering you. I'm here to listen without judgment.",
-                "Let's try to work through this together. What's on your mind?"
-            ],
-            'neutral': [
-                "Hello there! How's your day going?",
-                "Nice to see you! What brings you to our village today?",
-                "Greetings! Is there something I can help you with?"
-            ]
+            with open(key_file_path, "r") as file:
+                data = json.load(file)
+            api_key = data.get("OPENAI_API_KEY")
+            base_url = data.get("base_url")
+            if not api_key or not base_url:
+                print("❌ Missing 'OPENAI_API_KEY' or 'base_url' in credentials file.")
+                return None
+            return {"api_key": api_key, "base_url": base_url}
+        except FileNotFoundError:
+            print(f"❌ Credentials file not found at: {key_file_path}")
+            return None
+        except json.JSONDecodeError:
+            print("❌ Invalid JSON format in credentials file.")
+            return None
+```
+
+**DETAILED WALKTHROUGH:**
+- The key lives in a **separate JSON file** that is listed in `.gitignore`, so it never
+  gets committed to GitHub. This is the single most important security habit in the
+  whole camp — **secrets do not go in source code.**
+- Note the expected JSON keys: **`OPENAI_API_KEY`** and **`base_url`**. (If the file is
+  missing or malformed, the method returns `None` and the game uses fallback dialogue.)
+
+### Generating Dialogue (Prompt Engineering)
+**File**: [ai_dialogue_manager.py](../../ai_dialogue_manager.py) — `generate_npc_dialogue`
+
+```python
+    def generate_npc_dialogue(self, character_name, character_role,
+                              player_context, emotion="neutral"):
+        if self.fallback_mode or not self.client:
+            return self._get_fallback_dialogue(character_name, player_context, emotion)
+
+        emotion_guidance = {
+            "happy": "The player seems cheerful... match their positive energy.",
+            "sad": "The player appears down... be comforting and encouraging.",
+            # ... angry, surprised, fearful, neutral ...
         }
-        
-        # Select response based on emotion, or use general fallback
-        if emotion_context in emotion_responses:
-            import random
-            return random.choice(emotion_responses[emotion_context])
-        else:
-            return self._fallback_dialogue(prompt)
+        emotion_hint = emotion_guidance.get(emotion, emotion_guidance["neutral"])
+
+        # @STUDENT-EDIT-Week2_Day4-1: Change the prompt to give the AI a new personality!
+        prompt = f"""
+        You are {character_name}, a {character_role} in a cozy farming game called PyDew Valley.
+        Player context: {player_context}
+        Player's current emotion: {emotion}
+        Emotional guidance: {emotion_hint}
+        Generate a short, friendly dialogue response (1-2 sentences) ...
+        """
+
+        response = self.client.chat.completions.create(
+            model="mistral-7b-instruct",
+            messages=[
+                # @STUDENT-EDIT-Week2_Day5-1: Fine-tune the system prompt before the final demo
+                {"role": "system", "content": "You are a helpful NPC in a farming game. "
+                                              "Keep responses brief, friendly, all-ages."},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=100,
+            temperature=0.8,
+        )
+        return response.choices[0].message.content.strip()
 ```
 
-### Integration with Game Systems
-**File**: `main.py` (Lines 250-300)
-- Shows how LLM-generated dialogue is used in the game
-- Demonstrates combining emotion detection with AI dialogue
+**DETAILED WALKTHROUGH:**
+- **System vs. user message:** the *system* message sets the AI's overall behavior; the
+  *user* message is the specific request. Marker `@STUDENT-EDIT-Week2_Day4-1` (in the
+  user prompt) and `@STUDENT-EDIT-Week2_Day5-1` (system prompt) are where students give
+  the NPC a personality — pirate, robot, grumpy farmer, etc.
+- **`emotion_guidance`** is a dictionary that turns a detected emotion into instructions
+  for the AI — this is where Week 2's two AI systems start to meet.
+- **`temperature=0.8`** controls randomness/creativity; **`max_tokens=100`** caps length.
+- **`response.choices[0].message.content`** is how we pull the text out of the API
+  response object — a key "parsing the response" lesson.
+
+### The Fallback Path (No Key, No Internet)
+**File**: [ai_dialogue_manager.py](../../ai_dialogue_manager.py) — `_get_fallback_dialogue`
 
 ```python
-    def update(self, dt):
-        """Update game systems."""
-        self.level.update(dt)
-        
-        # Update emotion detection if active
-        if self.emotion_detector.is_running:
-            emotion, confidence = self.emotion_detector.get_emotion()
-            # Store current emotion for dialogue system
-            if emotion not in ["not_running", "no_face", "error"] and confidence > 0.5:
-                self.current_emotion = emotion
-                self.current_emotion_confidence = confidence
-            else:
-                self.current_emotion = None
-        
-        # Update dialogue system
-        self.dialogue_system.update(dt)
+    def _get_fallback_dialogue(self, character_name, player_context, emotion):
+        # @STUDENT-EDIT-Week2_Day4-2: Create custom fallback responses for when the API is down
+        if "Merchant Pete" in character_name:
+            if emotion == "happy":
+                return "I can see you're in great spirits today! ..."
+            elif emotion == "sad":
+                return "I notice you seem a bit down, friend. ..."
+            # ... angry, surprised, fearful ...
+        return "Hello there! Nice to see you around the farm today."
 ```
 
-**File**: `dialogue_system.py` (Lines 150-250)
-- Shows how the dialogue system uses AI-generated content
-- Demonstrates updating dialogue with emotional context
-
-```python
-    def update(self, dt):
-        """Update the dialogue system."""
-        self.dialogue_timer.update()
-        
-        # Update AI-generated dialogue if needed
-        if self.active and self.ai_manager and not self.fallback_mode:
-            # Could regenerate dialogue based on current game state or emotions
-            pass
-    
-    def set_ai_dialogue(self, prompt: str, emotion_context: str = ""):
-        """Set dialogue using AI generation."""
-        if self.ai_manager and not self.ai_manager.fallback_mode:
-            ai_dialogue = self.ai_manager.generate_dialogue_with_context(
-                prompt, emotion_context
-            )
-            # Split into lines for display
-            dialogue_lines = [line.strip() for line in ai_dialogue.split('.') if line.strip()]
-            self.set_dialogue(dialogue_lines)
-        else:
-            # Fallback to predefined dialogue
-            fallback_dialogue = self.ai_manager._fallback_dialogue_with_emotion(
-                prompt, emotion_context
-            )
-            dialogue_lines = [line.strip() for line in fallback_dialogue.split('.') if line.strip()]
-            self.set_dialogue(dialogue_lines)
-```
-
-### Testing LLM Integration
-**File**: `test_emotions.py` (if exists) or example script
-- Shows how to test LLM integration independently
-
-```python
-"""
-Test script for LLM integration
-==============================
-This script demonstrates how to test the AI dialogue system
-independently from the game.
-"""
-
-from ai_dialogue_manager import AIDialogueManager
-
-def test_ai_dialogue():
-    """Test the AI dialogue manager with various prompts."""
-    ai_manager = AIDialogueManager()
-    
-    test_prompts = [
-        "Hello! How are you today?",
-        "I need help with my farm.",
-        "What's your favorite crop to grow?",
-        "Tell me a joke about farming."
-    ]
-    
-    emotions = ["happy", "sad", "angry", "neutral"]
-    
-    print("Testing AI Dialogue Generation:")
-    print("=" * 40)
-    
-    for prompt in test_prompts:
-        for emotion in emotions:
-            response = ai_manager.generate_dialogue_with_context(prompt, emotion)
-            print(f"Prompt: {prompt}")
-            print(f"Emotion: {emotion}")
-            print(f"Response: {response}")
-            print("-" * 40)
-
-if __name__ == "__main__":
-    test_ai_dialogue()
-```
+**DETAILED WALKTHROUGH:**
+- Even with no API access, the NPC gives an **emotion-aware** reply. This is why the
+  game is demoable offline. Marker `@STUDENT-EDIT-Week2_Day4-2` is where students write
+  their own fallback lines.
 
 ## Key Learning Points
-1. Understanding how LLMs work and what they can do
-2. How to interact with AI APIs using Python libraries
-3. Prompt engineering for better AI responses
-4. Handling API responses and errors gracefully
-5. Combining multiple AI technologies (emotion detection + LLMs)
-6. Creating fallback mechanisms for when AI services are unavailable
+1. **LLMs generate text** from a prompt; we reach one over an HTTP API.
+2. **OpenAI-compatible clients** work with any endpoint via `base_url`.
+3. **Keep secrets in a gitignored file**, never in code.
+4. **Prompt engineering** — system vs. user messages, `temperature`, `max_tokens`.
+5. **Parse responses** and always have a **fallback**.
 
 ## Extension Activities
-1. Experiment with different LLM providers (Hugging Face, etc.)
-2. Create a dialogue system that remembers conversation history
-3. Add personality traits to the AI NPC (grumpy, cheerful, mysterious, etc.)
-4. Implement rate limiting to prevent API overuse
-5. Create a chatbot interface for testing LLM interactions
+1. **Give the NPC a personality** at `@STUDENT-EDIT-Week2_Day4-1` /
+   `@STUDENT-EDIT-Week2_Day5-1`.
+2. **Write custom fallbacks** at `@STUDENT-EDIT-Week2_Day4-2`.
+3. **Experiment with `temperature`** (e.g. 0.2 vs 1.0) and observe how replies change.
+4. **Add a debug print** of the prompt at `@STUDENT-EDIT-Week2_Day5-2` to see exactly
+   what gets sent.
 
 ## Troubleshooting Tips
-- If API calls fail, check your internet connection and API key validity
-- Verify that the OpenAI library is properly installed and up to date
-- Check for rate limiting or quota exceeded errors from the API provider
-- Ensure that your prompts aren't too long (exceeding token limits)
-- Look for JSON parsing errors when processing API responses
+- **`Credentials file not found`:** create `ai_materials/navigator_api_key.json` with
+  `OPENAI_API_KEY` and `base_url`. Confirm it's valid JSON (commas, quotes).
+- **Always offline / fallback mode:** the key file is missing/malformed, or `openai`
+  isn't installed (`install("openai")` in `main.py`).
+- **Empty or weird replies:** lower `temperature`, shorten the prompt, and confirm the
+  `model` name matches what the endpoint serves (`mistral-7b-instruct`).
+- **Accidentally committed your key:** rotate it immediately and confirm
+  `ai_materials/navigator_api_key.json` is in `.gitignore`.

@@ -7,7 +7,9 @@ from settings_menu import SettingsMenu
 
 
 class MainMenu:
+    """The title screen: Start Game / Credits / Options / Quit, plus a settings sub-screen."""
     def __init__(self, start_game, camera_change_callback=None):
+        """Store callbacks and set up the menu options, fonts, and state."""
         self.display_surface = pygame.display.get_surface()
         self.font = pygame.font.Font("font/LycheeSoda.ttf", 50)
         self.title_font = pygame.font.Font("font/LycheeSoda.ttf", 100)
@@ -29,6 +31,7 @@ class MainMenu:
         self.settings_menu = None
 
     def display(self):
+        """Draw whichever screen is active: main menu, credits, or settings."""
         self.display_surface.fill("black")
 
         if self.state == "main":
@@ -47,6 +50,7 @@ class MainMenu:
                 self.input_timer.activate()
 
     def display_main_menu(self):
+        """Draw the title and the menu options, highlighting the selected one."""
         # display the title: "PyDew Valley: GAIC 26" with double the font size
         title_surf = self.title_font.render("PyDew Valley: GAIC 26", True, "White")
         title_rect = title_surf.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 4))
@@ -68,6 +72,7 @@ class MainMenu:
                 self.display_surface.blit(self.corn_surf, corn_rect)
 
     def display_credits(self):
+        """Draw the credits screen."""
         # Credits title
         title_surf = self.title_font.render("Credits", True, "White")
         title_rect = title_surf.get_rect(center=(SCREEN_WIDTH / 2, 100))
@@ -107,6 +112,7 @@ class MainMenu:
                 self.display_surface.blit(text_surf, text_rect)
 
     def input(self):
+        """Route keyboard input to the handler for the current screen."""
         keys = pygame.key.get_pressed()
         self.input_timer.update()
 
@@ -120,6 +126,7 @@ class MainMenu:
         # Settings input is handled in the display method
 
     def handle_main_input(self, keys):
+        """Move the selection with up/down and act on it with Enter."""
         if keys[pygame.K_UP]:
             self.selected_index = (self.selected_index - 1) % len(self.options)
             self.input_timer.activate()
@@ -141,10 +148,12 @@ class MainMenu:
                 sys.exit()
 
     def handle_credits_input(self, keys):
+        """Return to the main menu when ESC is pressed."""
         if keys[pygame.K_ESCAPE]:
             self.state = "main"
             self.input_timer.activate()
 
     def update(self):
+        """Process input and redraw the menu each frame."""
         self.input()
         self.display()

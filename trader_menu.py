@@ -4,8 +4,9 @@ from timer import Timer
 
 
 class TraderMenu:
+    """The buy/sell shop UI: lists items to sell and seeds to buy."""
     def __init__(self, player, open_menu_callback):
-
+        """Set up the menu options from the player's inventory and the layout."""
         # general setup
         self.player = player
         self.open_menu_callback = open_menu_callback  # Changed from toggle_menu
@@ -29,6 +30,7 @@ class TraderMenu:
         self.timer = Timer(200)
 
     def display_money(self):
+        """Draw the player's current money at the bottom of the screen."""
         text_surf = self.font.render(f"${self.player.money}", False, "Black")
         text_rect = text_surf.get_rect(midbottom=(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 20))
 
@@ -36,7 +38,7 @@ class TraderMenu:
         self.display_surface.blit(text_surf, text_rect)
 
     def setup(self):
-
+        """Pre-render each menu row's text and compute the menu's size/position."""
         # create the text surfaces
         self.text_surfs = []
         self.total_height = 0
@@ -60,6 +62,7 @@ class TraderMenu:
         self.sell_text = self.font.render("sell", False, "Black")
 
     def input(self):
+        """Handle up/down to move the selection and space to buy/sell the current row."""
         keys = pygame.key.get_pressed()
         self.timer.update()
 
@@ -105,7 +108,7 @@ class TraderMenu:
             self.index = 0
 
     def show_entry(self, text_surf, amount, top, selected, item_index):
-
+        """Draw one menu row: name, amount owned, price, and buy/sell highlight."""
         # background
         bg_rect = pygame.Rect(
             self.main_rect.left,
@@ -155,9 +158,11 @@ class TraderMenu:
                 self.display_surface.blit(self.buy_text, pos_rect)
 
     def update(self):
+        """Process shop input each frame."""
         self.input()
 
     def display(self):
+        """Draw the money total and every buyable/sellable row."""
         self.display_money()
 
         for text_index, text_surf in enumerate(self.text_surfs):

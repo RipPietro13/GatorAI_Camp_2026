@@ -3,13 +3,16 @@ from settings import *
 
 
 class CharacterScreen:
+    """The inventory/stats screen toggled with the I key."""
     def __init__(self, player):
+        """Store the player and set up the font; start hidden."""
         self.display_surface = pygame.display.get_surface()
         self.font = pygame.font.Font("font/LycheeSoda.ttf", 30)
         self.player = player
         self.visible = False
 
     def display(self):
+        """Draw the player's items, seeds, and money as a list of text lines."""
         self.display_surface.fill("black")
         y_offset = 50
         text_surf = self.font.render("Inventory", True, "White")
@@ -45,7 +48,9 @@ class CharacterScreen:
         self.display_surface.blit(text_surf, text_rect)
 
     def toggle(self):
+        """Show or hide the screen."""
         self.visible = not self.visible
 
     def update(self):
+        """No per-frame logic needed (the screen is static while open)."""
         pass

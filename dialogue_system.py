@@ -74,6 +74,7 @@ class DialogueSystem:
         self.active = True
         self.dialogue_index = 0
         self.on_finish_callback = on_finish
+        # @STUDENT-EDIT-Day4-1: Insert print() statements here to debug which dialogue branch is executing
 
         if dialogue_lines:
             # If explicit dialogue lines are passed (e.g. from custom NPCs), use them
@@ -104,11 +105,13 @@ class DialogueSystem:
 
     def _get_static_fallback(self, character_id: str) -> str:
         """Provides a simple, static fallback dialogue for NPCs."""
-        # @STUDENT-EDIT-Day3-1: Add a new greeting to this dictionary
+        # @STUDENT-EDIT-Day5-3: Try loading custom dialogue from a text file here instead of hardcoding it
+        # @STUDENT-EDIT-Day3-1: Add a new greeting string to this dialogue dictionary
         fallbacks = {
             "trader": "Welcome, friend! I have many fine goods for a hardworking farmer like you. Let's see what you need."
         }
-        # @STUDENT-EDIT-Day4-1: Create a branching conversation option here by returning a list instead if needed
+        # @STUDENT-EDIT-Day3-2: Create a branching dialogue option using nested lists/dictionaries
+        # @STUDENT-EDIT-Day3-3: Add a dialogue choice that ends the conversation early (self.active = False)
         return fallbacks.get(character_id, "Hello there! Nice day for farming.")
 
     def _wrap_text(self, text, max_width):
@@ -159,6 +162,7 @@ class DialogueSystem:
         for event in events:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
+                    # @STUDENT-EDIT-Day4-2: Link a dialogue choice to a sprite action here if implementing branching
                     self.next_line()
                     return True  # Indicate that we consumed the input
         return False  # No input consumed

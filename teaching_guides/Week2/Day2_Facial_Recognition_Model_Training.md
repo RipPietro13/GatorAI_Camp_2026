@@ -1,167 +1,188 @@
 # Day 2: Facial Recognition Model Training
 
 ## Objective
-Learn model training concepts and implement expression recognition.
+Understand the machine-learning workflow and how the trained emotion model is used in
+the game.
 
 ## Core Concepts
-- **Model Training Fundamentals**
-  - Training vs. validation vs. test data
-  - Small dataset of facial expressions (happy, sad, neutral)
-  - Students capture labeled images
-- **Implementing Training Pipeline**
-  - Code walkthrough for training/fine-tuning expression models
-  - Focus on understanding how models learn from data
-- **Testing & Evaluating Models**
-  - Run model on test images
-  - Print accuracy and confusion matrix
-- **Saving Models**
-  - Save trained model to file (`.h5` or `.pkl`)
-  - Loading models for game integration
+- **ML workflow**: data → model → training → evaluation → save → use
+- **Convolutional Neural Networks (CNNs)** for image classification
+- **Image preprocessing**: grayscale, resize to 48×48, normalize
+- **Confidence and thresholds**
+- **Saving/loading** a PyTorch model (`.pth`)
+
+> **Framework:** PyTorch + PyTorch Lightning. The saved model is
+> `ai_materials/emotion_model.pth`, a checkpoint dictionary (not a Keras `.h5`).
 
 ## Hands-On Exercise
-- Follow guided notebook/script to train expression recognition model
-- Test on personal images or sample photos
-- Check and discuss accuracy results
+Work through the notebooks (Colab or locally):
+- [ai_materials/01_full_of_emotion.ipynb](../../ai_materials/01_full_of_emotion.ipynb) —
+  builds and **trains** the CNN, evaluates it, even compares against transfer learning,
+  and saves `emotion_model.pth`.
+- [ai_materials/02_real_time_emotion_detection.ipynb](../../ai_materials/02_real_time_emotion_detection.ipynb) —
+  loads the saved model and runs it on webcam frames.
+
+Then look at how the game uses the result in `emotion_detector.py`.
 
 ## Code References
 
-### Jupyter Notebooks for Training
-**File**: `ai_materials/02_real_time_emotion_detection.ipynb`
-- Shows the complete workflow for emotion detection training
-- Demonstrates data collection, preprocessing, and model training
+> Snippets are copied from the real project files / notebooks.
 
-### Emotion Detector Implementation Details
-**File**: `emotion_detector.py` (Lines 50-150)
-- Shows how the emotion detection model is used for predictions
-- Demonstrates image preprocessing and emotion classification
+### The CNN Architecture
+**File**: [emotion_detector.py](../../emotion_detector.py) — `class EmotionCNN`
+(identical to the one in `01_full_of_emotion.ipynb`)
 
 ```python
-    def detect_emotion(self, frame):
-        """Detect emotion from a video frame."""
-        if not self.model_loaded or self.emotion_model is None:
-            return "unknown", 0.0
-            
-        # Convert frame to grayscale for face detection
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        
-        # Detect faces
-        faces = self.face_cascade.detectMultiScale(
-            gray,
-            scaleFactor=1.1,
-            minNeighbors=5,
-            minSize=(30, 30)
+class EmotionCNN(pl.LightningModule):
+    """Compact CNN for emotion recognition (must match the training notebook)."""
+
+    def __init__(self, num_classes=6, learning_rate=0.001):
+        super().__init__()
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32), nn.ReLU(), nn.MaxPool2d(2, 2),
         )
-        
-        if len(faces) == 0:
-            return "no_face", 0.0
-            
-        # Process the first detected face
-        (x, y, w, h) = faces[0]
-        face_roi = gray[y:y+h, x:x+w]
-        
-        # Preprocess for emotion model
-        face_roi = cv2.resize(face_roi, (48, 48))
-        face_roi = face_roi.astype("float") / 255.0
-        face_roi = np.expand_dims(face_roi, axis=-1)
-        face_roi = np.expand_dims(face_roi, axis=0)
-        
-        # Predict emotion
-        try:
-            preds = self.emotion_model.predict(face_roi)[0]
-            emotion_probability = np.max(preds)
-            emotion_label = self.emotion_labels[np.argmax(preds)]
-            return emotion_label, emotion_probability
-        except Exception as e:
-            print(f"⚠️ Error in emotion prediction: {e}")
-            return "error", 0.0
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64), nn.ReLU(), nn.MaxPool2d(2, 2),
+        )
+        self.conv3 = nn.Sequential(
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128), nn.ReLU(), nn.MaxPool2d(2, 2),
+        )
+        self.global_avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.classifier = nn.Sequential(
+            nn.Dropout(0.5), nn.Linear(128, 128), nn.ReLU(),
+            nn.Dropout(0.3), nn.Linear(128, num_classes),
+        )
 ```
 
-### Model Loading and Usage
-**File**: `emotion_detector.py` (Lines 150-200)
-- Shows how to start/stop video capture
-- Demonstrates real-time emotion detection loop
+**DETAILED WALKTHROUGH:**
+- **`nn.Conv2d(1, 32, ...)`** — the first conv layer takes **1** channel (grayscale)
+  and produces 32 feature maps. Each conv block is Conv → BatchNorm → ReLU → MaxPool,
+  the standard CNN building block.
+- The three conv blocks progressively learn richer features (edges → shapes →
+  expression-like patterns).
+- **`AdaptiveAvgPool2d(1)`** collapses each feature map to a single number, and the
+  **`classifier`** (with `Dropout` for regularization) outputs one score per emotion.
+- **`num_classes=6`** — the model knows 6 emotions. The exact names are stored *in the
+  saved file* (see below).
+
+### Why the Architecture Is Duplicated in the Game
+The class must be defined in `emotion_detector.py` so PyTorch can rebuild the model
+before loading the saved weights. The comment in the file says exactly this: *"This
+class must be defined so we can load the saved model weights."* This is a common
+gotcha — point it out so students understand the notebook and the game must agree.
+
+### Loading the Trained Model
+**File**: [emotion_detector.py](../../emotion_detector.py) — `_load_model()`
 
 ```python
-    def start_detection(self):
-        """Start video capture for emotion detection."""
-        if self.is_running:
-            return
-            
-        self.video_capture = cv2.VideoCapture(0)
-        if not self.video_capture.isOpened():
-            print("⚠️ Could not open video device")
-            return False
-            
-        self.is_running = True
+    def _load_model(self):
+        # @STUDENT-EDIT-Week2_Day2-1: Change the path to point to your own trained model
+        model_path = os.path.join("ai_materials", "emotion_model.pth")
+        ...
+        checkpoint = torch.load(model_path, map_location=torch.device("cpu"),
+                                weights_only=False)
+        self.model = EmotionCNN(num_classes=checkpoint["num_classes"])
+        self.model.load_state_dict(checkpoint["model_state_dict"])
+        self.model.eval()
+        self.emotion_names = checkpoint["emotion_names"]
         return True
-    
-    def stop_detection(self):
-        """Stop video capture and release resources."""
-        if self.video_capture is not None:
-            self.video_capture.release()
-        self.is_running = False
-    
-    def get_emotion(self):
-        """Get current emotion detection result."""
-        if not self.is_running or self.video_capture is None:
-            return "not_running", 0.0
-            
-        ret, frame = self.video_capture.read()
-        if not ret:
-            return "no_frame", 0.0
-            
-        return self.detect_emotion(frame)
 ```
 
-### Integration with Game Systems
-**File**: `main.py` (Lines 200-250)
-- Shows how emotion detection is integrated into the game
-- Demonstrates toggling emotion detection and using results
+**DETAILED WALKTHROUGH:**
+- **`torch.load(...)`** reads the checkpoint *dictionary*. It contains
+  `model_state_dict` (the learned weights), `num_classes`, and `emotion_names`.
+- **`load_state_dict(...)`** pours the saved weights into a fresh `EmotionCNN`.
+- **`self.model.eval()`** switches the model to evaluation mode (turns off Dropout).
+- **`self.emotion_names = checkpoint["emotion_names"]`** — the saved label list. For the
+  provided model this is `['Angry', 'Fear', 'Happy', 'Neutral', 'Sad', 'Surprise']`.
+- Marker `@STUDENT-EDIT-Week2_Day2-1` lets students point this at a model **they**
+  trained in the notebook.
+
+### From Camera Frame to Emotion
+**File**: [emotion_detector.py](../../emotion_detector.py) — inside `run()`
 
 ```python
-    def toggle_emotion_detection(self):
-        """Toggle emotion detection on/off."""
-        if self.emotion_detector.is_running:
-            self.emotion_detector.stop_detection()
-            print("🛑 Emotion detection stopped")
-        else:
-            if self.emotion_detector.start_detection():
-                print("📹 Emotion detection started")
-            else:
-                print("⚠️ Failed to start emotion detection")
-    
-    def update(self, dt):
-        """Update game systems."""
-        self.level.update(dt)
-        
-        # Update emotion detection if active
-        if self.emotion_detector.is_running:
-            emotion, confidence = self.emotion_detector.get_emotion()
-            # Could use emotion to influence game state or dialogue
-            if emotion != "not_running" and emotion != "no_face":
-                # Store current emotion for dialogue system
-                self.current_emotion = emotion
-                self.current_emotion_confidence = confidence
+# detect → crop → preprocess → classify
+gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+faces = self.face_cascade.detectMultiScale(gray_frame, 1.1, 5)
+...
+face_roi = gray_frame[y : y + h, x : x + w]
+resized_face = cv2.resize(face_roi, (48, 48))
+image_tensor = transform(Image.fromarray(resized_face)).unsqueeze(0)
+
+with torch.no_grad():
+    output = self.model(image_tensor)
+    # @STUDENT-EDIT-Week2_Day2-2: Adjust the confidence threshold here if needed
+    probabilities = torch.nn.functional.softmax(output, dim=1)
+    max_prob, pred_idx = torch.max(probabilities, dim=1)
+
+    if max_prob.item() >= 0.4:
+        emotion = self.emotion_names[pred_idx.item()]
+    else:
+        emotion = "neutral"
+
+    # Translate the model's label (e.g. "Fear") to the game's canonical name ("fearful")
+    emotion = EMOTION_LABEL_MAP.get(emotion.lower(), emotion.lower())
+    self.emotions_deque.append(emotion)
 ```
+
+**DETAILED WALKTHROUGH:**
+1. Convert to grayscale, **detect** faces, **crop** the largest one, **resize** to
+   48×48 (the size the model expects), and turn it into a tensor.
+2. **`softmax`** turns raw scores into probabilities that sum to 1; **`torch.max`** picks
+   the most likely emotion and its confidence.
+3. **The threshold** (`>= 0.4`, marker `@STUDENT-EDIT-Week2_Day2-2`): if the model isn't
+   confident enough, we report `"neutral"` instead of guessing. This 6-class model
+   rarely exceeds 0.5 on natural expressions, which is why the threshold is 0.4 — a great
+   discussion of precision vs. recall.
+4. **`EMOTION_LABEL_MAP`** translates the model's labels (`Fear`, `Surprise`) into the
+   names the rest of the game uses (`fearful`, `surprised`) so the overlay icons and AI
+   dialogue match. Keeping these vocabularies in sync is a real engineering lesson.
+
+### The Label Map
+**File**: [emotion_detector.py](../../emotion_detector.py) (top of file)
+
+```python
+EMOTION_LABEL_MAP = {
+    "angry": "angry",
+    "fear": "fearful",
+    "happy": "happy",
+    "neutral": "neutral",
+    "sad": "sad",
+    "surprise": "surprised",
+}
+```
+
+If a student trains a model whose `emotion_names` differ, this is where they reconcile
+the model's vocabulary with the game's icons (`graphics/emotions/bunny-*.png`) and the
+AI guidance keys in `ai_dialogue_manager.py`.
 
 ## Key Learning Points
-1. Understanding the machine learning workflow (data → training → evaluation → deployment)
-2. How convolutional neural networks work for image classification
-3. Image preprocessing techniques for model input
-4. Real-time video processing with OpenCV
-5. Model persistence and loading for reuse
-6. Integrating AI models into interactive applications
+1. **CNNs** classify images via stacked conv blocks.
+2. **The model file stores both weights and metadata** (`num_classes`,
+   `emotion_names`).
+3. **Preprocessing must match training** (grayscale, 48×48, normalized).
+4. **Confidence thresholds** trade false positives against missed detections.
+5. **Vocabulary consistency** across model, icons, and dialogue matters.
 
 ## Extension Activities
-1. Collect your own facial expression dataset and retrain the model
-2. Modify the emotion detector to work with static images instead of video
-3. Add emotion smoothing to reduce jitter in predictions
-4. Create a confidence visualization for emotion detection results
-5. Experiment with different model architectures for emotion recognition
+1. **Train your own** model in `01_full_of_emotion.ipynb` and point
+   `@STUDENT-EDIT-Week2_Day2-1` at it.
+2. **Tune the threshold** at `@STUDENT-EDIT-Week2_Day2-2` and observe how often emotions
+   register vs. how jittery they are.
+3. **Add emotion smoothing**: since the game keeps the last 5 emotions in a `deque`,
+   compute the most common of the last few instead of the single latest.
+4. **Print confidence** to the console to see how sure the model is per frame.
 
 ## Troubleshooting Tips
-- If the model fails to load, check that the file path is correct and the file isn't corrupted
-- Verify that TensorFlow/Keras is compatible with your Python version
-- Ensure webcam is properly connected and not being used by another application
-- Check that the Haar cascade XML file is accessible
-- Look for dimension mismatches in image preprocessing steps
+- **`Model file not found`:** confirm `ai_materials/emotion_model.pth` exists, or update
+  the path at `@STUDENT-EDIT-Week2_Day2-1`.
+- **Loads but predicts only "neutral":** the threshold may be too high, or the camera is
+  dark/no face is detected. Lower the threshold and check lighting.
+- **Wrong icon / always neutral in dialogue:** the model's `emotion_names` don't map to
+  the game's names — fix `EMOTION_LABEL_MAP`.
+- **State-dict load error:** the `EmotionCNN` in `emotion_detector.py` must match the
+  one used to train (same layers). Keep them identical.

@@ -5,7 +5,9 @@ import game_settings
 
 
 class SettingsMenu:
+    """In-game/options settings screen: volumes, camera, and AI toggles."""
     def __init__(self, camera_change_callback=None):
+        """Build the list of settings rows and set up fonts, state, and the indicator."""
         self.display_surface = pygame.display.get_surface()
         self.font = pygame.font.Font("font/LycheeSoda.ttf", 32)
         self.title_font = pygame.font.Font("font/LycheeSoda.ttf", 60)
@@ -44,6 +46,7 @@ class SettingsMenu:
         ).convert_alpha()
 
     def display(self):
+        """Draw the title, every settings row with its control, and the instructions."""
         # Don't fill with black - let the caller handle the background
         # This allows the menu to be drawn on top of the game world
 
@@ -214,6 +217,7 @@ class SettingsMenu:
         self.display_surface.blit(toggle_surf, toggle_rect)
 
     def input(self):
+        """Handle navigation and edits; return "back" when leaving, else None."""
         keys = pygame.key.get_pressed()
         self.input_timer.update()
 
@@ -282,7 +286,6 @@ class SettingsMenu:
         return None
 
     def update(self):
-        # Only handle input, not rendering
-        # Rendering is handled separately by the caller
+        """Process input and return its result ("back" or None); drawing is done by the caller."""
         result = self.input()
         return result

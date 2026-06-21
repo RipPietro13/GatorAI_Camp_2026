@@ -2,6 +2,7 @@ from os import walk, path
 import pygame
 
 def import_folder(folder_path):
+	"""Load every image in a folder and return them as a list of surfaces."""
 	surface_list = []
 	base_path = path.dirname(path.abspath(__file__))
 
@@ -14,6 +15,7 @@ def import_folder(folder_path):
 	return surface_list
 
 def import_folder_dict(folder_path):
+	"""Load every image in a folder into a dict keyed by filename (without extension)."""
 	surface_dict = {}
 	base_path = path.dirname(path.abspath(__file__))
 

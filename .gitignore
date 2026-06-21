@@ -43,3 +43,9 @@ ai_materials/data/
 ai_materials/checkpoints
 ai_materials/lightning_logs
 ai_materials/navigator_api_key.json
+
+# Claude Code (local AI assistant artifacts)
+.claude/
+.claude/settings.local.json
+CLAUDE.local.md
+teaching_guides/DOC_SCRUB_LOG.md

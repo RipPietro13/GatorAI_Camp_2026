@@ -1,8 +1,8 @@
-# Gator AI Summer Camp 2025
+# Gator AI Summer Camp 2026
 
 ## Introduction
 
-This is a draft repository for the **Gator AI Summer Camp 2025** program. The camp will teach students the basics of AI and how to apply AI to solve real-world problems.
+This is a draft repository for the **Gator AI Summer Camp 2026** program. The camp will teach students the basics of AI and how to apply AI to solve real-world problems.
 
 ### Program Overview
 
@@ -38,7 +38,7 @@ All code in this project should be:
 - **Install & Run IDE**: Explain what IDEs are and set up development environment
 - **Install Python**: Walk through Python installation (if not already installed)
 - **GitHub Setup**: Sign-in or sign-up for GitHub account
-- **Download Project**: Clone from [Ian's GitHub Repository](https://github.com/UFResearchComputing/GatorAI_Camp_2025)
+- **Download Project**: Clone from [Ian's GitHub Repository](https://github.com/UFResearchComputing/GatorAI_Camp_2026)
 - **Hello World**: Demonstrate running "Hello, World!" in a Python script
 
 #### Core Concepts

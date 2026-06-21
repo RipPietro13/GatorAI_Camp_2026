@@ -53,7 +53,7 @@ Before starting the camp, ensure you have:
 
 ## Getting Started
 
-1. Clone the main repository: `git clone https://github.com/UFResearchComputing/GatorAI_Camp_2025`
+1. Clone the main repository: `git clone https://github.com/UFResearchComputing/GatorAI_Camp_2026`
 2. Navigate to the project directory
 3. Follow the Day 1 guide to set up your environment
 4. Progress through each day's guide in order

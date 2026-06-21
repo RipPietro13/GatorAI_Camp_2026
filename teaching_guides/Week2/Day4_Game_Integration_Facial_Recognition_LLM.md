@@ -1,211 +1,191 @@
-# Day 4: Game Integration - Facial Recognition + LLM
+# Day 4: Game Integration — Facial Recognition + LLM
 
 ## Objective
-Combine facial recognition and LLM technologies in the game.
+Combine the emotion detector (computer vision) and the dialogue manager (LLM) so an NPC
+responds to the player's real facial expression.
 
 ## Core Concepts
-- **Loading Facial Recognition Model**
-  - Load saved model from Day 2 into game code
-  - Integrate webcam/image capture for real-time analysis
-  - Snapshot-based approach (keypress to check expression)
-- **API Calls from In-Game**
-  - Combine LLM API script with game logic
-  - Dynamic prompts based on recognized expressions
-  - Example: "User is smiling. NPC responds with friendly greeting."
-- **Designing Interaction Flow**
-  - Craft LLM prompts with contextual info
-  - Map expressions to conversation branches (happy → friendly, sad → consoling)
-- **Error Handling & Debugging**
-  - Handle API downtime or recognition failures
-  - Use `print()` statements for debugging
+- **Connecting two AI systems** through shared data (the `emotions_deque`)
+- **Building a context** from game state + detected emotion
+- **Passing that context** into the LLM prompt
+- **Showing the result** on screen (emotion icons + AI dialogue)
 
 ## Hands-On Exercise
-- Incorporate model + LLM calls into game dialogue function
-- Group testing: one person as "player" (webcam), other monitors code
+- Ensure the camera is on (Day 1) and the API key is set (Day 3).
+- Walk up to the **Trader** and press ENTER. The trader's greeting is generated based on
+  your detected emotion and your in-game progress.
 
 ## Code References
 
-### Emotion Detector Integration
-**File**: `main.py` (Lines 300-350)
-- Shows how emotion detection is initialized and used in the main game
-- Demonstrates toggling emotion detection and storing results
+> Snippets are copied from the real project files.
+
+### Step 1: The Detector Shares a `deque` With the Game
+**File**: [main.py](../../main.py) — `Game.__init__` and `restart_emotion_detector`
 
 ```python
-    def __init__(self):
-        # ...existing code...
-        # Initialize emotion detector
-        self.emotion_detector = EmotionDetector()
-        self.current_emotion = None
-        self.current_emotion_confidence = 0.0
-        # ...existing code...
+        # Store the last 5 detected emotions in a shared deque
+        self.emotions_deque = deque(maxlen=5)
+        self.emotion_detector = None  # created later (camera imports are heavy)
 ```
 
-**File**: `main.py` (Lines 350-400)
-- Shows how emotion detection is toggled and updated
-- Demonstrates using emotion data to influence game systems
+```python
+    def restart_emotion_detector(self):
+        from emotion_detector import EmotionDetector
+        self.emotion_detector = EmotionDetector(
+            self.emotions_deque, show_camera_preview=False
+        )
+        self.emotion_detector.start()  # launches the background thread
+```
+
+**DETAILED WALKTHROUGH:**
+- The same `emotions_deque` object is handed to the detector **and** to the level/overlay.
+  The detector writes to it; everyone else reads from it. This shared object is the
+  bridge between the vision system and the rest of the game.
+- The detector is created lazily (when the camera is enabled via Options) because
+  importing `torch`/`cv2` is slow — we don't want to pay that at startup.
+
+### Step 2: Passing the `deque` Into the Level and Overlay
+**File**: [level.py](../../level.py) — `Level.__init__`
 
 ```python
-    def toggle_emotion_detection(self):
-        """Toggle emotion detection on/off."""
-        if self.emotion_detector.is_running:
-            self.emotion_detector.stop_detection()
-            print("🛑 Emotion detection stopped")
+    def __init__(self, emotions_deque):
+        self.emotions_deque = emotions_deque          # keep a reference
+        ...
+        self.overlay = Overlay(self.player, emotions_deque)   # overlay shows the icons
+        self.dialogue_system = DialogueSystem()
+```
+
+**DETAILED WALKTHROUGH:**
+- `Level` receives the deque and forwards it to the `Overlay`, which draws the bunny
+  emotion icons in the corner. So the detector's output is visible immediately, even
+  before any dialogue happens.
+
+### Step 3: Building Emotion-Aware Context for the Trader
+**File**: [level.py](../../level.py) — `toggle_shop()`
+
+```python
+    def toggle_shop(self):
+        # Most recent emotion (newest is at the end of the deque); default to neutral
+        recent_emotions = list(self.emotions_deque) if self.emotions_deque else []
+        current_emotion = recent_emotions[-1] if recent_emotions else "neutral"
+
+        # Context from the player's progress (money)
+        if self.player.money > 1000:
+            situation = "player has lots of money and is doing well farming"
+        elif self.player.money < 100:
+            situation = "player is just starting out and has limited funds"
         else:
-            if self.emotion_detector.start_detection():
-                print("📹 Emotion detection started")
-            else:
-                print("⚠️ Failed to start emotion detection")
-    
-    def update(self, dt):
-        """Update game systems."""
-        self.level.update(dt)
-        
-        # Update emotion detection if active
-        if self.emotion_detector.is_running:
-            emotion, confidence = self.emotion_detector.get_emotion()
-            # Store current emotion for dialogue system
-            if emotion not in ["not_running", "no_face", "error"] and confidence > 0.5:
-                self.current_emotion = emotion
-                self.current_emotion_confidence = confidence
-            else:
-                self.current_emotion = None
-        
-        # Update dialogue system
-        self.dialogue_system.update(dt)
+            situation = "player is making steady progress with their farm"
+
+        player_context = {
+            "npc_name": "Merchant Pete",
+            "npc_role": "friendly trader",
+            "situation": situation,
+            "emotion": current_emotion,
+            "player_money": self.player.money,
+        }
+
+        # Start dialogue; open the shop only after the greeting finishes
+        self.dialogue_system.start_dialogue(
+            "trader", player_context=player_context, on_finish=self.open_trader_menu
+        )
 ```
 
-### LLM Integration with Emotion Context
-**File**: `dialogue_system.py` (Lines 250-350)
-- Shows how to set AI dialogue with emotional context
-- Demonstrates updating dialogue based on detected emotions
+**DETAILED WALKTHROUGH:**
+- **`recent_emotions[-1]`** reads the *newest* emotion (the deque appends to the end).
+- The `if/elif/else` turns the player's **money** into a human-readable `situation`
+  string — game state becoming AI context.
+- Both pieces (emotion + situation) go into the `player_context` dictionary that the
+  dialogue system forwards to the LLM. The `on_finish=self.open_trader_menu` callback
+  opens the shop *after* the AI greeting finishes (the Day 3 callback pattern).
+
+### Step 4: The Dialogue System Calls the LLM With That Context
+**File**: [dialogue_system.py](../../dialogue_system.py) — `start_dialogue()` (AI branch)
 
 ```python
-    def set_ai_dialogue_with_emotion(self, base_prompt: str = ""):
-        """Set dialogue using AI generation with emotional context."""
-        emotion_context = ""
-        if hasattr(self.game, 'current_emotion') and self.game.current_emotion:
-            emotion_context = self.game.current_emotion
-            confidence = getattr(self.game, 'current_emotion_confidence', 0.0)
-            # Only use emotion if confidence is high enough
-            if confidence < 0.5:
-                emotion_context = ""
-        
-        if self.ai_manager and not self.ai_manager.fallback_mode:
-            ai_dialogue = self.ai_manager.generate_dialogue_with_context(
-                base_prompt, emotion_context
+        elif self.ai_enabled and self.ai_manager and player_context:
+            dialogue_line = self.ai_manager.generate_npc_dialogue(
+                character_name=player_context.get("npc_name", "NPC"),
+                character_role=player_context.get("npc_role", "character"),
+                player_context=player_context.get("situation", "meeting you"),
+                emotion=player_context.get("emotion", "neutral"),
             )
-            # Split into lines for display
-            dialogue_lines = [line.strip() for line in ai_dialogue.split('.') if line.strip()]
-            self.set_dialogue(dialogue_lines)
-        else:
-            # Fallback to predefined dialogue with emotion awareness
-            fallback_dialogue = self.ai_manager._fallback_dialogue_with_emotion(
-                base_prompt, emotion_context
-            )
-            dialogue_lines = [line.strip() for line in fallback_dialogue.split('.') if line.strip()]
-            self.set_dialogue(dialogue_lines)
+            self.current_dialogue = self._wrap_text(dialogue_line, self.text_box_rect.width - 40)
 ```
 
-### NPC Interaction with Emotion-Aware Dialogue
-**File**: `level.py` (Lines 350-450)
-- Shows how NPCs use emotion-aware dialogue when interacted with
-- Demonstrates passing emotion context to dialogue system
+**DETAILED WALKTHROUGH:**
+- This is the branch from Day 3's `generate_npc_dialogue`. The detected `emotion` flows
+  all the way from the camera → deque → `toggle_shop` context → here → the LLM prompt.
+- If AI is disabled or unavailable, `start_dialogue` falls through to static
+  emotion-aware lines instead — the demo still works.
+
+### Step 5: Showing the Detected Emotion On Screen
+**File**: [overlay.py](../../overlay.py) — emotion icons
 
 ```python
-    def player_attack_logic(self):
-        """Handle player attack logic and NPC interactions."""
-        if self.current_attack:
-            for attack_sprite in self.attack_sprites:
-                collision_sprites = pygame.sprite.spritecollide(
-                    attack_sprite, self.attackable_sprites, False
-                )
-                if collision_sprites:
-                    for target in collision_sprites:
-                        if hasattr(target, 'get_status'):
-                            target.get_damage(self, self.get_player_weapon_damage())
-                        
-                        # Check if the target is an NPC that can talk
-                        if hasattr(target, 'trigger_dialogue'):
-                            # Pass the game reference so NPC can access emotion data
-                            target.trigger_dialogue(self.dialogue_system, self.game)
+        # Keys MUST match the model's (mapped) labels and the bunny-*.png filenames
+        for emotion in ["happy", "sad", "angry", "surprised", "neutral", "fearful"]:
+            icon_path = os.path.join(emotions_path, f"bunny-{emotion}.png")
+            if os.path.exists(icon_path):
+                self.emotion_icons[emotion] = pygame.transform.scale(
+                    pygame.image.load(icon_path).convert_alpha(), (64, 64))
 ```
 
-**File**: `entities/npc.py` (example implementation)
-- Shows how NPCs trigger emotion-aware dialogue
-
 ```python
-class NPC(Entity):
-    def __init__(self, pos, groups, obstacle_sprites, dialogue_system):
-        super().__init__(groups)
-        # ...existing code...
-        self.dialogue_system = dialogue_system
-        
-    def trigger_dialogue(self, dialogue_system, game=None):
-        """Trigger dialogue when interacted with, using emotion context if available."""
-        # Base dialogue prompt
-        base_prompt = "Greet the player and offer help with farming tasks"
-        
-        # If we have access to the game and emotion detector, use emotion-aware dialogue
-        if game and hasattr(dialogue_system, 'set_ai_dialogue_with_emotion'):
-            dialogue_system.game = game  # Pass game reference for emotion access
-            dialogue_system.set_ai_dialogue_with_emotion(base_prompt)
-        else:
-            # Fallback to predefined dialogue
-            dialogue_lines = [
-                "Hello, traveler! Welcome to our village.",
-                "Are you looking for work?",
-                "I need help with my farm. Can you water the crops?",
-                "Thank you! Here's a reward for your help."
-            ]
-            dialogue_system.set_dialogue(dialogue_lines)
+        # in display(): show the most recent emotion largest, older ones smaller
+        if self.emotions_deque:
+            emotions_to_display = list(reversed(self.emotions_deque))
+            ...
 ```
 
-### Debugging and Error Handling
-**File**: `main.py` (Lines 400-450)
-- Shows how to add debugging information for AI systems
-- Demonstrates error handling and fallback notifications
+**DETAILED WALKTHROUGH:**
+- The overlay reads the **same deque** and draws a bunny face per recent emotion. The
+  icon keys, the model's mapped labels (`EMOTION_LABEL_MAP`), and the AI's
+  `emotion_guidance` keys must all use the same vocabulary
+  (`happy/sad/angry/surprised/neutral/fearful`) — the integration only works if these
+  three lists agree.
 
-```python
-    def draw(self):
-        """Draw all game elements."""
-        self.display_surface.fill(WATER_COLOR)
-        self.level.draw()
-        
-        # Draw UI elements
-        self.main_menu.draw()
-        self.character_screen.draw()
-        
-        # Draw emotion detection status
-        if self.emotion_detector.is_running:
-            emotion_text = f"Emotion: {self.current_emotion or 'Detecting...'}"
-            if self.current_emotion_confidence > 0:
-                emotion_text += f" ({self.current_emotion_confidence:.2f})"
-            # In a full implementation, this would be rendered on screen
-            print(emotion_text)  # Debug output
-        
-        # Draw dialogue system
-        self.dialogue_system.draw()
+## The Full Data Flow (the key picture for today)
+
+```
+Webcam ─▶ EmotionDetector (thread)
+            detect face ─▶ crop ─▶ CNN ─▶ EMOTION_LABEL_MAP
+              │
+              ▼  appends to
+        emotions_deque (shared)
+         │                 │
+         ▼                 ▼
+   Overlay (icons)   level.toggle_shop() builds player_context
+                            │
+                            ▼
+              dialogue_system.start_dialogue(player_context)
+                            │
+                            ▼
+        ai_dialogue_manager.generate_npc_dialogue()  ─▶  LLM (mistral-7b-instruct)
+                            │
+                            ▼
+                  text shown in the dialogue box
 ```
 
 ## Key Learning Points
-1. How to integrate multiple AI systems (computer vision + NLP) into a single application
-2. Using real-time data (emotion detection) to influence AI-generated content
-3. Designing context-aware prompts for better AI responses
-4. Implementing graceful fallbacks when AI systems fail or are unavailable
-5. Debugging AI integrations and monitoring system performance
-6. Creating engaging user experiences that respond to player emotions
+1. **Shared mutable state** (`emotions_deque`) connects independent systems.
+2. **Lazy initialization** keeps startup fast despite heavy AI imports.
+3. **Game state → context → prompt** is the heart of context-aware AI.
+4. **Callbacks** sequence dialogue then shop.
+5. **Vocabulary must be consistent** across detector, overlay, and dialogue.
 
 ## Extension Activities
-1. Create different NPC personalities that respond differently to the same emotions
-2. Add memory to the dialogue system so NPCs remember previous conversations
-3. Implement emotion-based gameplay mechanics (e.g., happy players get better prices)
-4. Create a visualization of emotion detection results within the game UI
-5. Experiment with different emotion-to-dialogue mapping strategies
+1. **Make a custom NPC emotion-aware** by giving it a `player_context` like the trader.
+2. **Use more than the latest emotion** — pass the *most common* of the last 5.
+3. **Different NPC personalities** reacting to the same emotion (system-prompt changes).
+4. **Add an on-screen label** of the current emotion next to the bunny icon.
 
 ## Troubleshooting Tips
-- If emotion detection isn't working, verify the webcam is functioning and properly connected
-- Check that the emotion model file exists and is in the correct format
-- If AI dialogue isn't generating, verify API key configuration and internet connectivity
-- Look for performance issues when running both AI systems simultaneously
-- Ensure that emotion data is being properly passed between game systems
-- Check for threading issues if implementing real-time emotion detection
+- **NPC always acts "neutral":** the deque is empty (camera off / no face) or labels
+  don't match — verify `EMOTION_LABEL_MAP` and the overlay keys agree.
+- **Icons don't appear:** the emotion name has no matching `bunny-*.png`; check spelling
+  (`fearful`, not `fear`).
+- **Shop opens before the greeting:** make sure `toggle_shop` passes
+  `on_finish=self.open_trader_menu` rather than opening the menu directly.
+- **Game stutters with camera + AI:** the API call happens when the shop opens, not
+  every frame; if it's still slow, confirm the detector's loop keeps its `time.sleep`.

@@ -2,7 +2,7 @@
 PyDew Valley - Educational Game for Learning Python
 ==================================================
 This is the main game file that starts and runs our farming simulation game.
-Students will learn Python concepts through game development!
+We will learn Python concepts through game development!
 
 Educational Concepts Covered:
 - Classes and Object-Oriented Programming
@@ -10,18 +10,19 @@ Educational Concepts Covered:
 - Pygame library usage
 - Module imports and organization
 """
-# [1] Main game entry point with module imports and installation
+
 # [1] Main game entry point with module imports and installation
 
 # Import required modules for our game
 from installer import install
 
 # Install required packages if they're not already installed
-# install("pygame")  # Game development library
+# install("pygame-ce")  # Game development library (community fork, imports as "pygame")
 # install("pytmx")  # Map loading library
 # install("kagglehub")  # Dataset library
 # install("requests")  # Library for web requests
 # install("opencv-python")  # Computer vision library
+# install("torchvision")
 # install("pytorch_lightning")
 # install("openai")  # AI API library for dialogue generation
 
@@ -30,7 +31,6 @@ import sys  # System operations
 import os  # Operating system interface
 
 # Import our custom game modules
-# @STUDENT-EDIT-Day1-2: Notice how settings variables are imported and used here
 from settings import *  # Game configuration settings
 from main_menu import MainMenu  # Main menu system
 import game_settings  # Audio and game settings
@@ -50,24 +50,19 @@ class Game:
     Think of this as the "manager" that coordinates everything!
     """
 
-# [2] Game class structure; shows class definition, initialization with pygame setup
+    # [2] Game class structure; shows class definition, initialization with pygame setup
 
     def __init__(self):
-        """
-        Initialize the Game - Set Up Everything We Need
-        ==============================================
-        This method runs when we create a new Game object.
-        It sets up pygame, creates the window, and prepares our game.
-        """
-        # Initialize pygame - this must be done before using pygame features
+        """Start pygame, open the window, and set up the menu and game-state flags."""
+        # pygame.init() must run before any other pygame call
         pygame.init()
-        pygame.mixer.init()  # Initialize audio system for sound effects and music
+        pygame.mixer.init()  # audio system for sound effects and music
 
-        # Create the game window with specified dimensions
+        # Create the game window and title it
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-        pygame.display.set_caption(TITLE)  # Set window title
+        pygame.display.set_caption(TITLE)
 
-        # Create a clock to control frame rate (how fast the game runs)
+        # Clock caps the frame rate so the game runs at a steady speed
         self.clock = pygame.time.Clock()
 
         # Change to the directory where our game files are located
@@ -96,6 +91,8 @@ class Game:
         # Don't import EmotionDetector at startup - too slow
         # It will be created later when start_game() is called if camera is enabled
 
+        # @STUDENT-EDIT-Day1-5: Insert a print("Game starting!") statement here to see when the game starts
+
     def show_loading_screen(self, message="Loading...", delay_ms=250):
         """Display a loading screen with game title and animated loading bar."""
         self.screen.fill("black")
@@ -111,15 +108,21 @@ class Game:
         # Draw game title at top
         game_title = game_title_font.render("PyDew Valley", True, "White")
         subtitle = info_font.render("GAIC 26", True, (100, 200, 100))
-        title_rect = game_title.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 120))
-        subtitle_rect = subtitle.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 40))
+        title_rect = game_title.get_rect(
+            center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 120)
+        )
+        subtitle_rect = subtitle.get_rect(
+            center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 40)
+        )
 
         self.screen.blit(game_title, title_rect)
         self.screen.blit(subtitle, subtitle_rect)
 
         # Draw current loading message
         message_surface = message_font.render(message, True, "White")
-        message_rect = message_surface.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 40))
+        message_rect = message_surface.get_rect(
+            center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 40)
+        )
         self.screen.blit(message_surface, message_rect)
 
         # Draw loading bar with simple progress
@@ -136,9 +139,11 @@ class Game:
         # Fill bar partially
         fill_width = int(bar_width * 0.7)
         if fill_width > 0:
-            fill_rect = pygame.Rect(bar_x + 2, bar_y + 2, fill_width - 4, bar_height - 4)
+            fill_rect = pygame.Rect(
+                bar_x + 2, bar_y + 2, fill_width - 4, bar_height - 4
+            )
             pygame.draw.rect(self.screen, (100, 200, 100), fill_rect)
-        
+
         pygame.display.update()
         pygame.time.delay(delay_ms)
 
@@ -168,30 +173,24 @@ class Game:
 
         # Create new emotion detector with updated settings
         from emotion_detector import EmotionDetector
+
         self.emotion_detector = EmotionDetector(
             self.emotions_deque, show_camera_preview=False
         )
         self.emotion_detector.start()
 
     def run(self):
-        """
-        Main Game Loop - The Heart That Keeps Our Game Running
-        =====================================================
-        This is the main game loop that runs continuously until the player quits.
-        Every frame (many times per second), this loop:
-        1. Checks for player input (keyboard, mouse, window close)
-        2. Updates the game world or menu
-        3. Draws everything to the screen
+        """The main game loop: every frame, handle input, update state, then draw.
 
-        This is a fundamental concept in game programming!"""
+        Runs forever until the player quits. This input -> update -> draw cycle is
+        a fundamental game-programming concept.
+        """
         # Start the emotion detector thread once the main loop begins
         if self.emotion_detector and not self.emotion_detector.is_alive():
             self.emotion_detector.start()
 
         # Main game loop - runs until player quits
-        frame_count = 0
         while True:
-            frame_count += 1
             # Cap the frame rate to reduce CPU usage and keep game timing stable
             delta_time = self.clock.tick(60) / 1000  # Convert milliseconds to seconds
 
@@ -223,7 +222,9 @@ class Game:
                 ):
                     if self.character_screen and self.character_screen.visible:
                         self.character_screen.toggle()  # Close inventory screen
-                    elif self.level and (self.level.shop_active or self.level.dialogue_system.active):
+                    elif self.level and (
+                        self.level.shop_active or self.level.dialogue_system.active
+                    ):
                         # Let level run/events handle closing dialogue or shop (avoid opening settings)
                         pass
                     else:
@@ -239,8 +240,9 @@ class Game:
                     # Settings menu is open - create it if needed and handle it
                     if self.settings_menu is None:
                         from settings_menu import SettingsMenu
+
                         self.settings_menu = SettingsMenu(self.restart_emotion_detector)
-                    
+
                     # Process input for settings menu
                     # The input_timer in settings_menu prevents immediate processing of the opening ESC
                     result = self.settings_menu.update()
@@ -274,7 +276,7 @@ class Game:
                     self.screen.blit(overlay, (0, 0))
                     # Draw the settings menu on top
                     self.settings_menu.display()
-            
+
             pygame.display.update()  # Actually display what we've drawn
 
 

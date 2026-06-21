@@ -1,157 +1,142 @@
 # Day 5: Final Demonstrations and Reflection
 
 ## Objective
-Complete AI-enhanced projects and present to group.
+Complete the AI-enhanced project, present it, and reflect on what was learned.
 
 ## Activities
-- **Polish & Prepare**
-  - Refine dialogue flows and sprite reactions
-  - Add more expression-to-prompt logic
-- **Presentation of AI-Enhanced NPCs**
-  - Demonstrate expression recognition (smile, frown, etc.)
-  - Show LLM-generated dialogue responses
-- **Discussion & Troubleshooting**
-  - Group discussion: successes, challenges, real-world AI considerations
-  - Topics: scale, bias, privacy, ethics
-- **Next Steps & Further Learning**
-  - Areas for exploration: reinforcement learning, advanced computer vision, complex game design
-  - Work on group projects as time allows
-- **Final Reflection**
-  - Share one AI learning, one challenge, one future interest area
-  - **Optional**: Feedback forms or understanding quizzes
+- **Polish & Prepare** — tidy prompts, fallbacks, and expression-to-dialogue behavior
+- **Presentation** — demo expression recognition + AI dialogue
+- **Discussion** — real-world AI: bias, privacy, scale, ethics
+- **Reflection** — one learning, one challenge, one future interest
 
 ## Code References
 
-### Complete Integration Example
-**File**: `main.py` (Full file review)
-- Shows all systems working together
-- Demonstrates the complete AI-enhanced game loop
+> Snippets are copied from the real project files.
 
-### Presentation Preparation
-**File**: `settings.py` (Lines 1-50)
-- Shows how to configure game settings for demonstrations
-- Demonstrates toggling debug features and presentation modes
+### Final Prompt Polish
+**File**: [ai_dialogue_manager.py](../../ai_dialogue_manager.py)
+
+Two marked spots are meant for last-minute tuning before the demo:
 
 ```python
-"""
-Game Settings - Configuration for PyDew Valley
-=============================================
-This file contains all game settings and configuration options.
-Easy to modify for different gameplay experiences.
-"""
+# system prompt — sets the NPC's overall behavior
+# @STUDENT-EDIT-Week2_Day5-1: Fine-tune prompt engineering constraints before the demo
+{"role": "system", "content": "You are a helpful NPC in a farming simulation game. "
+                              "Keep responses brief, friendly, and appropriate for all ages."},
+```
 
-# Game Settings
-WIDTH = 1280
-HEIGHT = 720
-FPS = 60
-TITLE = "PyDew Valley - AI Enhanced Edition"
-WATER_COLOR = "#71ddee"
-UI_BG_COLOR = "#222222"
-UI_BORDER_COLOR = "#111111"
-TEXT_COLOR = "#EEEEEE"
+```python
+# @STUDENT-EDIT-Week2_Day5-2: Want to see what gets sent to the AI? Add print() statements
+# here to inspect the character, context, and emotion.
+```
 
-# Player Settings
-PLAYER_SPEED = 5
-PLAYER_ROT_SPEED = 200
-HITBOX_OFFSET = {
-    'player': -26,
-    'object': -40,
-    'grass': -10,
-    'invisible': -50
+**DETAILED WALKTHROUGH:**
+- `@STUDENT-EDIT-Week2_Day5-1` is the place to lock in the NPC's tone for the audience.
+- `@STUDENT-EDIT-Week2_Day5-2` is where students can temporarily add prints to *show the
+  audience* the prompt being sent — then remove them for the clean final run.
+
+### Verifying AI Status Before You Present
+There is no built-in status dashboard, but you can write a tiny check from the **real**
+objects the game exposes. Drop this into a scratch script or the Python REPL:
+
+```python
+from collections import deque
+from ai_dialogue_manager import AIDialogueManager
+
+ai = AIDialogueManager()
+print("AI online?    ", not ai.fallback_mode)   # True if the API key/connection worked
+print("Client built? ", ai.client is not None)
+```
+
+And to confirm emotion detection end-to-end, run the shipped script:
+
+```bash
+python test_emotions.py
+```
+
+**DETAILED WALKTHROUGH:**
+- **`ai.fallback_mode`** is the real flag that tells you whether live AI is active. If
+  it's `True`, you'll be demoing the (still emotion-aware) static fallbacks — good to
+  know *before* you're in front of people.
+- `test_emotions.py` exercises the deque + dialogue path without the camera, so it's a
+  reliable "is my AI text working?" smoke test.
+
+### Presentation Settings
+**File**: [settings.json](../../settings.json) and [game_settings.py](../../game_settings.py)
+
+Runtime settings live in `settings.json` (created/managed by `game_settings.py`):
+
+```json
+{
+  "master_volume": 0.6,
+  "music_volume": 0.0,
+  "camera_index": 1,
+  "enable_camera": true,
+  "enable_ai_dialogue": true
 }
-
-# AI Settings
-AI_ENABLED = True
-EMOTION_DETECTION_ENABLED = True
-AI_FALLBACK_ENABLED = True
-
-# Debug Settings
-SHOW_DEBUG_INFO = False
-SHOW_HITBOXES = False
-SHOW_COLLISION_BOXES = False
 ```
 
-### AI System Status Reporting
-**File**: `main.py` (Lines 450-500)
-- Shows how to report AI system status for presentations
-- Demonstrates collecting and displaying system metrics
+**DETAILED WALKTHROUGH:**
+- For a live demo: set **`enable_camera: true`** and the correct **`camera_index`**, and
+  **`enable_ai_dialogue: true`**. You can change camera/AI from the in-game **Options**
+  menu, which calls `restart_emotion_detector` so the new camera takes effect without a
+  restart.
+- Have a backup plan: if the webcam misbehaves, set `enable_camera: false` and present
+  the emotion-aware **fallback** dialogue, which still demonstrates the design.
+
+### Toggling the Camera Safely In-Game
+**File**: [main.py](../../main.py) — `restart_emotion_detector`
 
 ```python
-    def get_ai_status(self):
-        """Get status of all AI systems for debugging/presentation."""
-        status = {
-            'emotion_detector': {
-                'enabled': self.emotion_detector.is_running,
-                'model_loaded': self.emotion_detector.model_loaded,
-                'current_emotion': self.current_emotion,
-                'confidence': self.current_emotion_confidence
-            },
-            'dialogue_system': {
-                'active': self.dialogue_system.active,
-                'ai_available': self.dialogue_system.ai_manager is not None and not self.dialogue_system.ai_manager.fallback_mode if self.dialogue_system.ai_manager else False,
-                'current_dialogue_length': len(self.dialogue_system.current_dialogue) if self.dialogue_system.current_dialogue else 0
-            },
-            'game_state': {
-                'running': self.running,
-                'player_position': getattr(self.level.player, 'rect', None).topleft if hasattr(self.level, 'player') and self.level.player else None
-            }
-        }
-        return status
-    
-    def draw_debug_info(self):
-        """Draw debug information on screen (for presentations)."""
-        if not SHOW_DEBUG_INFO:
-            return
-            
-        # This would be implemented to show AI status on screen
-        # For now, we'll print to console for demonstration
-        status = self.get_ai_status()
-        print("=== AI System Status ===")
-        print(f"Emotion Detection: {'ON' if status['emotion_detector']['enabled'] else 'OFF'}")
-        print(f"Current Emotion: {status['emotion_detector']['current_emotion']} "
-              f"(Confidence: {status['emotion_detector']['confidence']:.2f})")
-        print(f"Dialogue Active: {'YES' if status['dialogue_system']['active'] else 'NO'}")
-        print(f"AI Available: {'YES' if status['dialogue_system']['ai_available'] else 'NO'}")
-        print("=" * 30)
+    def restart_emotion_detector(self):
+        if self.emotion_detector and self.emotion_detector.is_alive():
+            self.emotion_detector.stop()
+            self.emotion_detector.join(timeout=2.0)  # wait for the old thread to stop
+        from emotion_detector import EmotionDetector
+        self.emotion_detector = EmotionDetector(self.emotions_deque, show_camera_preview=False)
+        self.emotion_detector.start()
 ```
 
-### Final Project Structure
-**File**: `README.md` (Review)
-- Shows the complete learning outcomes covered
-- Demonstrates how all concepts tie together
+**DETAILED WALKTHROUGH:**
+- This cleanly **stops** the old detector thread before starting a new one — important
+  because two threads grabbing the same camera causes errors. It's the right pattern to
+  show when discussing how the game manages the webcam during the demo.
+
+## Discussion: Real-World AI Considerations
+Use the actual project to anchor the ethics conversation:
+- **Bias:** the emotion model has only 6 classes and was trained on a limited dataset.
+  Whose expressions might it read poorly? (Connect to Day 2's `emotion_names` and
+  accuracy discussion.)
+- **Privacy & consent:** the webcam runs locally and nothing is uploaded or saved — but
+  students should still ask permission before turning a camera on someone.
+- **Confidence & honesty:** the `>= 0.4` threshold and the `"neutral"` default mean the
+  game admits when it isn't sure rather than guessing — a small example of responsible
+  AI behavior.
 
 ## Key Learning Points
-1. How to integrate multiple AI systems into a cohesive application
-2. Presenting technical work to an audience
-3. Giving and receiving constructive feedback
-4. Reflecting on learning experiences and identifying future interests
-5. Understanding real-world AI considerations (ethics, bias, privacy)
-6. Planning next steps for continued learning
+1. **Integrating CV + NLP** into one application.
+2. **Checking real status** (`fallback_mode`, `test_emotions.py`) before demoing.
+3. **Configuring** the camera and AI via `settings.json` / Options.
+4. **Managing hardware** (the camera thread) cleanly.
+5. **AI ethics** grounded in this project's actual limitations.
 
 ## Extension Activities
-1. Create a presentation slideshow showcasing your AI-enhanced game features
-2. Write a reflection essay on what you learned about AI and game development
-3. Brainstorm ideas for expanding the game with additional AI features
-4. Create a tutorial teaching others how to implement one of the AI features you learned
-5. Explore ethical AI guidelines and create a policy for responsible AI use
+1. Write a slide that shows the **data-flow diagram** from Day 4 and narrate it.
+2. Add a temporary on-screen readout of `ai.fallback_mode` and the latest emotion for
+   the demo.
+3. Compare live-AI vs. fallback dialogue for the same emotion and discuss the trade-offs.
+4. Draft a one-paragraph "responsible use" note for your game's README.
 
-## Troubleshooting Tips for Presentations
-- Test your presentation setup beforehand to ensure all AI features work
-- Have backup plans ready in case of technical difficulties (e.g., webcam issues)
-- Prepare talking points that explain both the technical implementation and the learning experience
-- Anticipate questions about AI limitations and ethical considerations
-- Practice explaining complex concepts in simple terms for your audience
-
-## Assessment Criteria
-- **Technical Implementation**: Successfully integrated AI features into the game
-- **Presentation Quality**: Clear demonstration and explanation of features
-- **Reflection Depth**: Thoughtful consideration of learning experiences and future interests
-- **Collaboration**: Worked effectively with peers during development and testing
-- **Creativity**: Added unique personal touches to the AI-enhanced game
+## Troubleshooting Tips (for presentations)
+- **Test the full setup beforehand** — camera index, lighting, and `fallback_mode`.
+- **Webcam fails on stage:** flip `enable_camera: false` and demo the fallback dialogue.
+- **AI seems offline:** check `ai.fallback_mode`; the key file may be missing or the
+  endpoint unreachable from the venue's network.
+- **Two camera errors / black preview:** the previous detector thread may still be
+  running — `restart_emotion_detector` stops it first; don't start two detectors by hand.
 
 ## Resources for Continued Learning
-- Online AI courses (Coursera, edX, Khan Academy)
-- Game development tutorials (YouTube, Udemy)
-- AI ethics resources (AI Now Institute, Partnership on AI)
-- Programming practice sites (LeetCode, HackerRank, CodeWars)
-- Open source AI projects on GitHub
+- PyTorch tutorials (pytorch.org)
+- OpenCV documentation (docs.opencv.org)
+- Prompt-engineering and LLM API guides
+- AI ethics & fairness reading (e.g. model cards, dataset documentation)

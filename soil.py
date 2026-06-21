@@ -6,23 +6,29 @@ from random import choice
 import os
 
 class SoilTile(pygame.sprite.Sprite):
+	"""A single tilled-soil tile drawn on the soil layer."""
 	def __init__(self, pos, surf, groups):
+		"""Place the soil tile image at `pos`."""
 		super().__init__(groups)
 		self.image = surf
 		self.rect = self.image.get_rect(topleft = pos)
 		self.z = LAYERS['soil']
 
 class WaterTile(pygame.sprite.Sprite):
+	"""A watered-soil overlay tile drawn above plain soil."""
 	def __init__(self, pos, surf, groups):
+		"""Place the water-overlay image at `pos`."""
 		super().__init__(groups)
 		self.image = surf
 		self.rect = self.image.get_rect(topleft = pos)
 		self.z = LAYERS['soil water']
 
 class Plant(pygame.sprite.Sprite):
+	"""A growing crop that ages while watered and becomes harvestable when mature."""
 	def __init__(self, plant_type, groups, soil, check_watered):
+		"""Set up the plant's frames, growth speed, and starting (seed) image."""
 		super().__init__(groups)
-		
+
 		# setup
 		self.plant_type = plant_type
 		base_path = os.path.dirname(os.path.abspath(__file__))
@@ -43,6 +49,7 @@ class Plant(pygame.sprite.Sprite):
 		self.z = LAYERS['ground plant']
 
 	def grow(self, dt):
+		"""Age the plant while its soil is watered; mark harvestable when fully grown."""
 		if self.check_watered(self.rect.center):
 			self.age += self.grow_speed * dt  # Increment age by grow speed multiplied by delta time
 
@@ -58,8 +65,9 @@ class Plant(pygame.sprite.Sprite):
 			self.rect = self.image.get_rect(midbottom = self.soil.rect.midbottom + pygame.math.Vector2(0,self.y_offset))
 
 class SoilLayer:
+	"""Manages the farmable grid: tilling, watering, planting, and plant growth."""
 	def __init__(self, all_sprites, collision_sprites):
-
+		"""Set up the soil/water/plant groups, load graphics, and build the grid."""
 		# sprite groups
 		self.all_sprites = all_sprites
 		self.collision_sprites = collision_sprites
@@ -83,6 +91,7 @@ class SoilLayer:
 		self.plant_sound.set_volume(0.2)
 
 	def create_soil_grid(self):
+		"""Build a 2D grid and mark farmable cells ('F') from the map's Farmable layer."""
 		ground = pygame.image.load('graphics/world/ground.png')
 		h_tiles, v_tiles = ground.get_width() // TILE_SIZE, ground.get_height() // TILE_SIZE
 		
@@ -91,6 +100,7 @@ class SoilLayer:
 			self.grid[y][x].append('F')
 
 	def create_hit_rects(self):
+		"""Make a clickable rect for every farmable cell (used by the hoe)."""
 		self.hit_rects = []
 		for index_row, row in enumerate(self.grid):
 			for index_col, cell in enumerate(row):
@@ -101,6 +111,7 @@ class SoilLayer:
 					self.hit_rects.append(rect)
 
 	def get_hit(self, point):
+		"""Till the farmable tile at `point` (mark 'X' and create soil tiles)."""
 		for rect in self.hit_rects:
 			if rect.collidepoint(point):
 				self.hoe_sound.play()
@@ -115,6 +126,7 @@ class SoilLayer:
 						self.water_all()
 
 	def water(self, target_pos):
+		"""Water the tilled soil tile at `target_pos` (mark 'W' and add a water tile)."""
 		for soil_sprite in self.soil_sprites.sprites():
 			if soil_sprite.rect.collidepoint(target_pos):
 
@@ -127,6 +139,7 @@ class SoilLayer:
 				WaterTile(pos, surf, [self.all_sprites, self.water_sprites])
 
 	def water_all(self):
+		"""Water every tilled tile at once (used when it rains)."""
 		for index_row, row in enumerate(self.grid):
 			for index_col, cell in enumerate(row):
 				if 'X' in cell and 'W' not in cell:
@@ -136,7 +149,7 @@ class SoilLayer:
 					WaterTile((x,y), choice(self.water_surfs), [self.all_sprites, self.water_sprites])
 
 	def remove_water(self):
-
+		"""Dry out all soil: remove water tiles and clear 'W' from the grid (new day)."""
 		# destroy all water sprites
 		for sprite in self.water_sprites.sprites():
 			sprite.kill()
@@ -148,6 +161,7 @@ class SoilLayer:
 					cell.remove('W')
 
 	def check_watered(self, pos):
+		"""Return True if the soil cell at `pos` is watered."""
 		x = pos[0] // TILE_SIZE
 		y = pos[1] // TILE_SIZE
 		cell = self.grid[y][x]
@@ -155,6 +169,7 @@ class SoilLayer:
 		return is_watered
 
 	def plant_seed(self, target_pos, seed):
+		"""Plant a `seed` on the tilled tile at `target_pos` if it isn't already planted."""
 		for soil_sprite in self.soil_sprites.sprites():
 			if soil_sprite.rect.collidepoint(target_pos):
 				self.plant_sound.play()
@@ -166,11 +181,17 @@ class SoilLayer:
 					self.grid[y][x].append('P')
 					Plant(seed, [self.all_sprites, self.plant_sprites, self.collision_sprites], soil_sprite, self.check_watered)
 
-	def update_plants(self, dt):
+	def update_plants(self, dt=None):
+		"""Grow all plants. With no `dt` (sleeping), advance a full day; else by `dt`."""
+		# When the player sleeps, reset() calls this with no dt to advance
+		# every plant by a full day's worth of growth. During normal gameplay
+		# the Level passes the per-frame delta time so plants grow gradually.
+		grow_amount = dt if dt is not None else DAY_GROWTH
 		for plant in self.plant_sprites.sprites():
-			plant.grow(dt)
+			plant.grow(grow_amount)
 
 	def create_soil_tiles(self):
+		"""Rebuild all soil tile sprites, choosing each tile's edge variant from neighbors."""
 		self.soil_sprites.empty()
 		for index_row, row in enumerate(self.grid):
 			for index_col, cell in enumerate(row):
