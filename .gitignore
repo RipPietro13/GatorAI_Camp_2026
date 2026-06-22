@@ -3,7 +3,6 @@
 
 #ignore python cache
 __pycache__/
-__pycache__
 *.pyc
 *.pyo
 *.pyd
@@ -24,20 +23,6 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-__pycache__/character_screen.cpython-311.pyc
-__pycache__/installer.cpython-311.pyc
-__pycache__/level.cpython-311.pyc
-__pycache__/main_menu.cpython-311.pyc
-__pycache__/menu.cpython-311.pyc
-__pycache__/overlay.cpython-311.pyc
-__pycache__/player.cpython-311.pyc
-__pycache__/settings.cpython-311.pyc
-__pycache__/sky.cpython-311.pyc
-__pycache__/soil.cpython-311.pyc
-__pycache__/sprites.cpython-311.pyc
-__pycache__/support.cpython-311.pyc
-__pycache__/timer.cpython-311.pyc
-__pycache__/transition.cpython-311.pyc
 
 ai_materials/data/
 ai_materials/checkpoints
