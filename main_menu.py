@@ -52,7 +52,7 @@ class MainMenu:
     def display_main_menu(self):
         """Draw the title and the menu options, highlighting the selected one."""
         # display the title: "PyDew Valley: GAIC 26" with double the font size
-        title_surf = self.title_font.render("PyDew Valley: GAIC 26", True, "White")
+        title_surf = self.title_font.render("Fazendo do Seu Ze: GAIC 26", True, "Blue")
         title_rect = title_surf.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 4))
         self.display_surface.blit(title_surf, title_rect)
 

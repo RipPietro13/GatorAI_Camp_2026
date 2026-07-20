@@ -23,7 +23,7 @@ from pygame.math import Vector2
 SCREEN_WIDTH = 1280  # Width of game window in pixels (Default: 1280)
 SCREEN_HEIGHT = 720  # Height of game window in pixels (Default: 720)
 # @STUDENT-EDIT-Day1-2: Customize the game window title (TITLE)
-TITLE = "PyDew Valley: GAIC 26"  # Game window title text (Default: "PyDew Valley: GAIC 26")
+TITLE = "Fazenda do Seu Ze: GAIC 26"  # Game window title text (Default: "PyDew Valley: GAIC 26")
 # @STUDENT-EDIT-Day1-4: Experiment with different background colors
 WATER_COLOR = "#71ddee"  # Hex color code for the water background (Default: "#71ddee")
 TILE_SIZE = 64  # Size of each tile in our game world (pixels) (Default: 64)
@@ -42,7 +42,7 @@ SCREEN_CENTER_Y = SCREEN_HEIGHT / 2  # float: vertical middle of the screen
 # zero, it does NOT round!) and float(64) -> 64.0. More casting practice is in scratch.py.
 
 # @STUDENT-EDIT-Day5-1: Customize the player name and greeting variables
-PLAYER_NAME = "Farmer"  # Name shown for the player (Default: "Farmer")
+PLAYER_NAME = "Seu Ze"  # Name shown for the player (Default: "Farmer")
 GREETING = "Hello there!"  # Starter greeting text (Default: "Hello there!")
 
 # =============================================================================
@@ -121,7 +121,7 @@ APPLE_POS = {
 # Plant growth speeds (lower numbers = faster growth)
 GROW_SPEED = {
     "corn": 0.1,  # Corn grows relatively fast (Default: 0.1)
-    "tomato": 0.07,  # Tomatoes grow a bit slower (Default: 0.07)
+    "tomato": 1,  # Tomatoes grow a bit slower (Default: 0.07)
 }
 
 # How much growth a single night's sleep gives every plant. Sleeping skips a
@@ -129,7 +129,7 @@ GROW_SPEED = {
 DAY_GROWTH = 10  # Growth added after sleeping one day (Default: 10)
 
 # @STUDENT-EDIT-Day2-2: Change the player's movement speed (PLAYER_SPEED)
-PLAYER_SPEED = 200  # Player movement speed (Default: 200)
+PLAYER_SPEED = 500  # Player movement speed (Default: 200)
 
 # =============================================================================
 # ECONOMIC SYSTEM - PRICES AND VALUES
@@ -141,7 +141,7 @@ SALE_PRICES = {
     "wood": 4,  # Default sale value for wood
     "apple": 2,  # Default sale value for apples
     "corn": 10,  # Default sale value for corn
-    "tomato": 20,  # Default sale value for tomatoes
+    "tomato": 10000,  # Default sale value for tomatoes
 }
 
 # How much it costs to buy each seed
