@@ -99,6 +99,7 @@ class Game:
         # It will be created later when start_game() is called if camera is enabled
 
         # @STUDENT-EDIT-Day1-5: Insert a print("Game starting!") statement here to see when the game starts
+        print("Game Starting!")
         # @STUDENT-EDIT-Day1-6: Combine text AND a variable using an f-string (note the
         # f before the opening quote). Try adding: print(f"Welcome to {TITLE}!")
         # The {TITLE} part gets replaced with the value of TITLE from settings.py.
