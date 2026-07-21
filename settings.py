@@ -182,13 +182,5 @@ NPC_DATA = {
             "I'm Flavia, a helper NPC created using Python classes.",
             "Try editing settings.py to change what I say, or create your own custom NPC!"
         ]  # Default starter dialogue lines
-    },
-    "Black Cat": {
-        "pos": (1000, 800),  # Default spawn position
-        "graphic": "C:\\Users\\guest.101038\\Downloads\\Gemini_Generated_Image_4x30in4x30in4x30.png",  # Path to the black cat's image
-        "dialogue": [
-            "Meow! I'm the Black Cat!",
-            "I like to wander around the farm at night."
-        ]  # Default starter dialogue lines
     }
 }
