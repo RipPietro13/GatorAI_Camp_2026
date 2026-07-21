@@ -165,13 +165,30 @@ PURCHASE_PRICES = {
 # - graphic: Path to the character's image
 # - dialogue: A list of lines/paragraphs the character says when spoken to
 NPC_DATA = {
-    "Robin": {
+    "Sergio": {
         "pos": (800, 400),  # Default spawn position
         "graphic": "graphics/objects/merchant.png",  # Placeholder using existing asset (Default: "graphics/objects/merchant.png")
         "dialogue": [
-            "Hi there! Welcome to PyDew Valley!",
-            "I'm Robin, a helper NPC created using Python classes.",
+            "Hi there! Welcome to the Big Farm Valley! Our farm, my champion!",
+            "I'm Sergio, a helper NPC created using Python classes.",
             "Try editing settings.py to change what I say, or create your own custom NPC!"
+        ]  # Default starter dialogue lines
+    },
+    "Flavia": {
+        "pos": (900, 800),  # Default spawn position
+        "graphic": "graphics/objects/merchant.png",  # Placeholder using existing asset (Default: "graphics/objects/merchant.png")
+        "dialogue": [
+            "Hi there! Welcome to my Little Farm Valley! It's tiny, but... its cute right? :D",
+            "I'm Flavia, a helper NPC created using Python classes.",
+            "Try editing settings.py to change what I say, or create your own custom NPC!"
+        ]  # Default starter dialogue lines
+    },
+    "Black Cat": {
+        "pos": (1000, 800),  # Default spawn position
+        "graphic": "C:\\Users\\guest.101038\\Downloads\\Gemini_Generated_Image_4x30in4x30in4x30.png",  # Path to the black cat's image
+        "dialogue": [
+            "Meow! I'm the Black Cat!",
+            "I like to wander around the farm at night."
         ]  # Default starter dialogue lines
     }
 }
