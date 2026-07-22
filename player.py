@@ -209,20 +209,20 @@ class Player(pygame.sprite.Sprite):
 
             # MOVEMENT CONTROLS (vertical)
             # @STUDENT-EDIT-Day2-5: Amend input controls to allow WASD movement using the logical 'or'
-            if keys[pygame.K_UP]:
+            if keys[pygame.K_w] or keys[pygame.K_UP]:
                 self.direction.y = -1
                 self.status = "up"
-            elif keys[pygame.K_DOWN]:
+            elif keys[pygame.K_s]or keys[pygame.K_DOWN]:
                 self.direction.y = 1
                 self.status = "down"
             else:
                 self.direction.y = 0
 
             # MOVEMENT CONTROLS (horizontal)
-            if keys[pygame.K_RIGHT]:
+            if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
                 self.direction.x = 1
                 self.status = "right"
-            elif keys[pygame.K_LEFT]:
+            elif keys[pygame.K_a] or keys[pygame.K_LEFT]:
                 self.direction.x = -1
                 self.status = "left"
             else:
@@ -334,6 +334,14 @@ class Player(pygame.sprite.Sprite):
         self.hitbox.centery = round(self.pos.y)
         self.rect.centery = self.hitbox.centery
         self.collision("vertical")
+
+        if self.pos.y < 0:
+            self.pos.y = 0
+            if self.pos.y > SCREEN_HEIGHT:
+                self.pos.y = SCREEN_HEIGHT
+
+
+
 
         # @STUDENT-EDIT-Day2-4: Add a simple boundary check 'if' statement to prevent the player from leaving the screen.
 
