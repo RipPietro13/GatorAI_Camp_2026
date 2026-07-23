@@ -299,3 +299,6 @@ if __name__ == "__main__":
     """
     game = Game()  # Create a new Game instance
     game.run()  # Start the main game loop
+
+
+

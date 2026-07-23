@@ -29,6 +29,13 @@ class TraderMenu:
         self.index = 0
         self.timer = Timer(200)
 
+        # quantity entry state
+        self.quantity_mode = False
+        self.quantity_text = ""
+        self.pending_action = None
+        self.pending_item = None
+        self.prompt_message = ""
+
     def display_money(self):
         """Draw the player's current money at the bottom of the screen."""
         text_surf = self.font.render(f"${self.player.money}", False, "Black")
@@ -61,16 +68,97 @@ class TraderMenu:
         self.buy_text = self.font.render("buy", False, "Black")
         self.sell_text = self.font.render("sell", False, "Black")
 
-    def input(self):
-        """Handle up/down to move the selection and space to buy/sell the current row."""
+    def start_quantity_entry(self):
+        """Open a numeric prompt for buying or selling a chosen amount."""
+        self.quantity_mode = True
+        self.quantity_text = ""
+        self.prompt_message = ""
+        self.pending_action = "sell" if self.index <= self.sell_border else "buy"
+        self.pending_item = self.options[self.index]
+
+    def cancel_quantity_entry(self):
+        """Close the quantity prompt without applying any changes."""
+        self.quantity_mode = False
+        self.quantity_text = ""
+        self.prompt_message = ""
+        self.pending_action = None
+        self.pending_item = None
+
+    def confirm_quantity_entry(self):
+        """Apply the entered amount to the selected buy/sell action."""
+        if not self.quantity_text:
+            self.prompt_message = "Enter a number"
+            return
+
+        quantity = int(self.quantity_text)
+        if quantity <= 0:
+            self.prompt_message = "Use a number above 0"
+            return
+
+        if self.pending_action == "sell":
+            current_item = self.pending_item
+            available = self.player.item_inventory[current_item]
+            amount_to_sell = min(quantity, available)
+            if amount_to_sell > 0:
+                self.player.item_inventory[current_item] -= amount_to_sell
+                self.player.money += SALE_PRICES[current_item] * amount_to_sell
+            else:
+                self.prompt_message = "You have none to sell"
+                self.quantity_mode = False
+                self.quantity_text = ""
+                self.pending_action = None
+                self.pending_item = None
+                return
+        else:
+            seed_name = self.pending_item.split()[0]
+            seed_price = PURCHASE_PRICES[seed_name]
+            max_affordable = self.player.money // seed_price if seed_price > 0 else 0
+            amount_to_buy = min(quantity, max_affordable)
+            if amount_to_buy > 0:
+                self.player.seed_inventory[seed_name] += amount_to_buy
+                self.player.money -= seed_price * amount_to_buy
+            else:
+                self.prompt_message = "Not enough money"
+                self.quantity_mode = False
+                self.quantity_text = ""
+                self.pending_action = None
+                self.pending_item = None
+                return
+
+        self.quantity_mode = False
+        self.quantity_text = ""
+        self.prompt_message = ""
+        self.pending_action = None
+        self.pending_item = None
+
+    def handle_quantity_events(self, events):
+        """Process keyboard input while the quantity prompt is active."""
+        for event in events:
+            if event.type != pygame.KEYDOWN:
+                continue
+
+            if event.key == pygame.K_ESCAPE:
+                self.cancel_quantity_entry()
+            elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                self.confirm_quantity_entry()
+            elif event.key == pygame.K_BACKSPACE:
+                self.quantity_text = self.quantity_text[:-1]
+            elif event.unicode.isdigit():
+                self.quantity_text += event.unicode
+                if len(self.quantity_text) > 4:
+                    self.quantity_text = self.quantity_text[:4]
+
+    def input(self, events):
+        """Handle navigation and open a quantity prompt for buy/sell actions."""
         keys = pygame.key.get_pressed()
         self.timer.update()
 
+        if self.quantity_mode:
+            self.handle_quantity_events(events)
+            return
+
         if keys[pygame.K_ESCAPE]:
-            # Close the shop by setting shop_active to False in the level
-            # We need to access the level through the callback mechanism
-            # For now, we'll use a different approach - the level will handle this
-            pass  # The level will handle ESC key to close shop
+            pass
 
         if not self.timer.active:
             if keys[pygame.K_UP]:
@@ -83,23 +171,7 @@ class TraderMenu:
 
             if keys[pygame.K_SPACE]:
                 self.timer.activate()
-
-                # get item
-                current_item = self.options[self.index]
-
-                # sell
-                if self.index <= self.sell_border:
-                    if self.player.item_inventory[current_item] > 0:
-                        self.player.item_inventory[current_item] -= 1
-                        self.player.money += SALE_PRICES[current_item]
-
-                # buy
-                else:
-                    seed_name = current_item.split()[0]
-                    seed_price = PURCHASE_PRICES[seed_name]
-                    if self.player.money >= seed_price:
-                        self.player.seed_inventory[seed_name] += 1
-                        self.player.money -= seed_price
+                self.start_quantity_entry()
 
         # clamp the values
         if self.index < 0:
@@ -157,9 +229,9 @@ class TraderMenu:
                 )  # Adjust position
                 self.display_surface.blit(self.buy_text, pos_rect)
 
-    def update(self):
+    def update(self, events=None):
         """Process shop input each frame."""
-        self.input()
+        self.input(events or [])
 
     def display(self):
         """Draw the money total and every buyable/sellable row."""
@@ -176,3 +248,40 @@ class TraderMenu:
             self.show_entry(
                 text_surf, amount, top, self.index == text_index, text_index
             )
+
+        if self.quantity_mode:
+            prompt_rect = pygame.Rect(
+                SCREEN_WIDTH / 2 - 220,
+                SCREEN_HEIGHT / 2 - 90,
+                440,
+                180,
+            )
+            pygame.draw.rect(self.display_surface, "White", prompt_rect, 0, 8)
+            pygame.draw.rect(self.display_surface, "Black", prompt_rect, 4, 8)
+
+            title_surf = self.font.render("How many?", False, "Black")
+            title_rect = title_surf.get_rect(midtop=(prompt_rect.centerx, prompt_rect.top + 20))
+            self.display_surface.blit(title_surf, title_rect)
+
+            item_label = self.pending_item if self.pending_item else "item"
+            action_label = "sell" if self.pending_action == "sell" else "buy"
+            info_surf = self.font.render(f"{action_label.title()} {item_label}", False, "Black")
+            info_rect = info_surf.get_rect(midtop=(prompt_rect.centerx, prompt_rect.top + 60))
+            self.display_surface.blit(info_surf, info_rect)
+
+            input_rect = pygame.Rect(prompt_rect.centerx - 90, prompt_rect.top + 100, 180, 45)
+            pygame.draw.rect(self.display_surface, "LightGray", input_rect, 0, 6)
+            pygame.draw.rect(self.display_surface, "Black", input_rect, 2, 6)
+
+            value_surf = self.font.render(self.quantity_text or "0", False, "Black")
+            value_rect = value_surf.get_rect(center=input_rect.center)
+            self.display_surface.blit(value_surf, value_rect)
+
+            hint_surf = self.font.render("Enter to confirm • Esc to cancel", False, "Black")
+            hint_rect = hint_surf.get_rect(midtop=(prompt_rect.centerx, prompt_rect.top + 150))
+            self.display_surface.blit(hint_surf, hint_rect)
+
+            if self.prompt_message:
+                error_surf = self.font.render(self.prompt_message, False, "Red")
+                error_rect = error_surf.get_rect(midtop=(prompt_rect.centerx, prompt_rect.top + 130))
+                self.display_surface.blit(error_surf, error_rect)

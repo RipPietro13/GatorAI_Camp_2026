@@ -21,6 +21,7 @@ class SettingsMenu:
             {"name": "Sound Effects", "type": "volume", "key": "sfx_volume"},
             {"name": "Camera", "type": "camera", "key": "camera_index"},
             {"name": "Enable Camera", "type": "toggle", "key": "enable_camera"},
+            {"name": "Enable Sprinting", "type": "toggle", "key": "enable_sprinting"},
             {
                 "name": "Enable AI Dialogue",
                 "type": "toggle",

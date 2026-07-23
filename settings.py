@@ -130,6 +130,7 @@ DAY_GROWTH = 10  # Growth added after sleeping one day (Default: 10)
 
 # @STUDENT-EDIT-Day2-2: Change the player's movement speed (PLAYER_SPEED)
 PLAYER_SPEED = 500  # Player movement speed (Default: 200)
+SPRINT_SPEED_MULTIPLIER = 1.5  # Sprinting makes the player move 50% faster
 
 # =============================================================================
 # ECONOMIC SYSTEM - PRICES AND VALUES
@@ -185,10 +186,13 @@ NPC_DATA = {
     },
     "Black_Cat": {
         "pos": (0, 0),  # Default spawn position
-        "graphic": "C:\Users\guest.101038\Downloads\gato preto teste 1.webphics/objects/black_cat.png"
+        "graphic": "graphics/objects/merchant.png",  # Placeholder using an existing asset
         "dialogue": [
             "Meow! I'm the Black Cat, here to help you on your farm adventure!",
             "Keep an eye out for my fellow cats around the farm!"
         ]  # Default starter dialogue lines
     }
 }
+
+
+

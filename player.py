@@ -74,6 +74,7 @@ class Player(pygame.sprite.Sprite):
             self.rect.center
         )  # Precise position (can have decimals)
         self.speed = PLAYER_SPEED  # How fast the player moves (pixels per second)
+        self.sprinting = False  # Whether sprinting is currently active
 
         # COLLISION DETECTION
         self.hitbox = self.rect.copy().inflate((-126, -70))  # Smaller box for collision
@@ -228,6 +229,12 @@ class Player(pygame.sprite.Sprite):
             else:
                 self.direction.x = 0
 
+            # SPRINTING - increase movement speed when enabled and Shift is held
+            self.sprinting = (
+                game_settings.get("enable_sprinting", True)
+                and (keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT])
+            )
+
             # TOOL USAGE - use the current tool (stop moving, restart its animation)
             if keys[pygame.K_SPACE]:
                 self.timers["tool use"].activate()
@@ -323,14 +330,18 @@ class Player(pygame.sprite.Sprite):
         if self.direction.magnitude() > 0:
             self.direction = self.direction.normalize()
 
+        active_speed = self.speed * (
+            SPRINT_SPEED_MULTIPLIER if self.sprinting else 1
+        )
+
         # Horizontal: move, sync hitbox/rect, then resolve collisions
-        self.pos.x += self.direction.x * self.speed * dt
+        self.pos.x += self.direction.x * active_speed * dt
         self.hitbox.centerx = round(self.pos.x)
         self.rect.centerx = self.hitbox.centerx
         self.collision("horizontal")
 
         # Vertical: same again
-        self.pos.y += self.direction.y * self.speed * dt
+        self.pos.y += self.direction.y * active_speed * dt
         self.hitbox.centery = round(self.pos.y)
         self.rect.centery = self.hitbox.centery
         self.collision("vertical")

@@ -363,7 +363,7 @@ class Level:
             # Don't process other game logic while dialogue is active
         elif self.shop_active:
             # If shop is open, only update the shop menu
-            self.menu.update()
+            self.menu.update(events)
         else:
             # Normal gameplay updates
             self.all_sprites.update(dt)

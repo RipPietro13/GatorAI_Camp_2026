@@ -16,6 +16,7 @@ DEFAULT_SETTINGS = {
     "camera_index": 0,  # Default to first camera
     "enable_camera": True,  # Camera enabled by default
     "enable_ai_dialogue": True,  # AI-powered dialogue enabled by default
+    "enable_sprinting": True,  # Sprint movement enabled by default
 }
 
 # Global references for audio management
