@@ -129,8 +129,8 @@ GROW_SPEED = {
 DAY_GROWTH = 10  # Growth added after sleeping one day (Default: 10)
 
 # @STUDENT-EDIT-Day2-2: Change the player's movement speed (PLAYER_SPEED)
-PLAYER_SPEED = 500  # Player movement speed (Default: 200)
-SPRINT_SPEED_MULTIPLIER = 1.5  # Sprinting makes the player move 50% faster
+PLAYER_SPEED = 200  # Player movement speed (Default: 200)
+SPRINT_SPEED_MULTIPLIER = 2.0  # Sprinting makes the player move 100% faster
 
 # =============================================================================
 # ECONOMIC SYSTEM - PRICES AND VALUES
