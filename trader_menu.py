@@ -35,6 +35,7 @@ class TraderMenu:
         self.pending_action = None
         self.pending_item = None
         self.prompt_message = ""
+        self.close_button_rect = None
 
     def display_money(self):
         """Draw the player's current money at the bottom of the screen."""
@@ -131,22 +132,35 @@ class TraderMenu:
         self.pending_action = None
         self.pending_item = None
 
-    def handle_quantity_events(self, events):
-        """Process keyboard input while the quantity prompt is active."""
-        for event in events:
-            if event.type != pygame.KEYDOWN:
-                continue
+    def get_prompt_rect(self):
+        """Return the rectangle used for the quantity popup."""
+        return pygame.Rect(SCREEN_WIDTH / 2 - 220, SCREEN_HEIGHT / 2 - 90, 440, 180)
 
-            if event.key == pygame.K_ESCAPE:
-                self.cancel_quantity_entry()
-            elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
-                self.confirm_quantity_entry()
-            elif event.key == pygame.K_BACKSPACE:
-                self.quantity_text = self.quantity_text[:-1]
-            elif event.unicode.isdigit():
-                self.quantity_text += event.unicode
-                if len(self.quantity_text) > 4:
-                    self.quantity_text = self.quantity_text[:4]
+    def get_close_button_rect(self):
+        """Return the rectangle for the popup's close button."""
+        prompt_rect = self.get_prompt_rect()
+        return pygame.Rect(prompt_rect.right - 36, prompt_rect.top + 10, 24, 24)
+
+    def handle_quantity_events(self, events):
+        """Process keyboard and mouse input while the quantity prompt is active."""
+        self.close_button_rect = self.get_close_button_rect()
+
+        for event in events:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if self.close_button_rect.collidepoint(event.pos):
+                    self.cancel_quantity_entry()
+                    return
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.cancel_quantity_entry()
+                elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                    self.confirm_quantity_entry()
+                elif event.key == pygame.K_BACKSPACE:
+                    self.quantity_text = self.quantity_text[:-1]
+                elif event.unicode.isdigit():
+                    self.quantity_text += event.unicode
+                    if len(self.quantity_text) > 4:
+                        self.quantity_text = self.quantity_text[:4]
 
     def input(self, events):
         """Handle navigation and open a quantity prompt for buy/sell actions."""
@@ -250,14 +264,15 @@ class TraderMenu:
             )
 
         if self.quantity_mode:
-            prompt_rect = pygame.Rect(
-                SCREEN_WIDTH / 2 - 220,
-                SCREEN_HEIGHT / 2 - 90,
-                440,
-                180,
-            )
+            prompt_rect = self.get_prompt_rect()
             pygame.draw.rect(self.display_surface, "White", prompt_rect, 0, 8)
             pygame.draw.rect(self.display_surface, "Black", prompt_rect, 4, 8)
+
+            self.close_button_rect = self.get_close_button_rect()
+            pygame.draw.rect(self.display_surface, "Red", self.close_button_rect, 0, 6)
+            close_text = self.font.render("X", False, "White")
+            close_rect = close_text.get_rect(center=self.close_button_rect.center)
+            self.display_surface.blit(close_text, close_rect)
 
             title_surf = self.font.render("How many?", False, "Black")
             title_rect = title_surf.get_rect(midtop=(prompt_rect.centerx, prompt_rect.top + 20))
